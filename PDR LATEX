@@ -1,0 +1,38 @@
+The precursory mass for the TROI payload system was determined after conducting thorough research into alternative methods for each subsystem of the payload. The MGA (mass growth allowance) was determined based on the type of components and the maturity of each design. It was determined that TROI should not exceed the total gross weight of 90oz (\hyperlink{TROI.11}{NDRT Req. TROI.11}). Table 19 highlights the fundamental categories considered for each component: maturity, type, BME (basic mass estimate), MGA (mass growth allowance) percentage, the total basic mass, and the total predicted mass. These categories were used in determining the best key mass components in the TROI system.
+\begin{table}[H] 
+    \caption{TROI Mass Breakdown}
+    \begin{adjustwidth}{-4in}{-4in}
+    \begin{center}
+    \begin{tabular}{| m{30mm} | c | l | c | c | c |} \hline
+     \rowcolor{DarkBlue}\multicolumn{1}{| c |}{\centering \textcolor{white}{\textbf{Component}}} & {\textcolor{white}{\textbf{Maturity}}}&{\textcolor{white}{\textbf{Type}}}& \multicolumn{1}{ c |}{\textcolor{white}{\textbf{Basic Mass (oz)}}}&{\textcolor{white}{\textbf{MGA (\%)}}}&{\textcolor{white}{\textbf{Predicted Mass (oz)}}} \\ \hline
+  Lead Screw & 3 & PRIM &	1.058 & 11	 & 1.175 \\\hline
+Stepper Motors &3	 &	MECH	 & 22.72	 &  11	 & 25.22\\\hline
+Aluminum Retention Blocks	 & 3&	PRIM &	2.36& 12&2.64\\\hline
+Lithium Ion Battery Pack - 3.7V 4400mAh &	3 &	BAT &	3.2 & 17	 &3.58\\\hline
+Printed Circuit Board (PCB) & 3&	ELEC &	1.5 & 17	 & 1.755	\\\hline
+Raspberry Pi 0W & 3 &	SENS	 & 0.35 & 17 & 0.4095\\\hline
+APRS Module & 3	 &	SENS & 0.11	 & 17	 & 0.129	\\\hline
+Wires &3	 &	WIRE &	2.9 &18	 &3.422	\\\hline
+Camera (ESP32-CAM with Arducam OV5642 Camera)    &3 &	SENS &	0.7055 & 17	 &1.36\\\hline
+Retention Screws &3	 & PRIM &	4 & 12	 &4.48	\\\hline
+Fiberglass Retention Bulkheads &3	 &	PRIM &	9.755 &	12 & 10.93	\\\hline
+Spring	 & 3 &	MECH &	0.01 & 11	 & 0.0111	\\\hline
+Camera Retention Material (Aluminum 6061) &	3 &	SEC &	3.34 & 8	 & 3.6072	\\\hline
+Accelerometer &	3 &	SENS &	0.188 &	17 & 0.219	\\\hline
+Aluminum Standoffs &3	 & PRIM	 &	11.84 &14	 & 13.5	\\\hline
+Power Board &3	 &	ELEC &	1.3 & 18	 &1.534	\\\hline
+Antenna &3	 &	SENS &	0.37 & 17	 & 0.4329	\\\hline
+
+%Primary/Load-Bearing Structure	PRIM
+%Secondary Structure	SEC
+%Mechanims	MECH
+%Batteries	BAT
+%Instrumentation/Sensors	SENS
+%Wiring	WIRE
+%Other Electrical 	ELEC
+
+     \end{tabular}
+    \label{tab: lvismass}
+    \end{center}
+    \end{adjustwidth}
+\end{table}
