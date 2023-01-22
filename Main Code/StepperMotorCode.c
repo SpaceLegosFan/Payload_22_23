@@ -13,8 +13,8 @@ Add ESP32 to Arduino IDE: https://randomnerdtutorials.com/installing-the-esp32-b
 
 Reference Example: https://microcontrollerslab.com/stepper-motor-a4988-driver-module-esp32/
 *********** */
-
-// this code was copied from the ESP32 reference example: https://microcontrollerslab.com/stepper-motor-a4988-driver-module-esp32/
+// https://learn.adafruit.com/adafruit-bno055-absolute-orientation-sensor/arduino-code
+//  this code was copied from the ESP32 reference example: https://microcontrollerslab.com/stepper-motor-a4988-driver-module-esp32/
 #include <AccelStepper.h>
 #include <AccelerometerCode.c>
 #include <Wire.h>
@@ -56,7 +56,7 @@ void setup()
 
   bno.setExtCrystalUse(true);
 
-  Serial.print("Setup done: ");
+  Serial.print("Setup done");
 
   delay(1000);
 
@@ -82,9 +82,9 @@ void setup()
     // Serial.print(event.orientation.x, 4);
     motor.move(1);
     motor.run();
-    sensors_event_t event;
     bno.getEvent(&event);
   }
+
   Serial.print("Orientation Complete");
 
   delay(1000);
