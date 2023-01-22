@@ -17,8 +17,11 @@ Reference Example: https://microcontrollerslab.com/stepper-motor-a4988-driver-mo
 // this code was copied from the ESP32 reference example: https://microcontrollerslab.com/stepper-motor-a4988-driver-module-esp32/
 #include <AccelStepper.h>
 
+//this depends on the DPIO pins we solder
 const int DIR = 12;
 const int STEP = 14;
+
+onst int  steps_per_rev = 200;
 
 #define motorInterfaceType 1
 AccelStepper motor(motorInterfaceType, STEP, DIR);
@@ -37,4 +40,14 @@ void loop() {
     Serial.println("Rotating Motor in opposite direction...");
   }
   motor.run();
+}
+
+int deployHor(){
+//TODO: run motor for predetermined time until camera module exits rocket
+
+
+}
+
+int deployVer(){
+  //TODO: run linear actuator until camera is fully extended above horizon
 }
