@@ -30,21 +30,7 @@ const int steps_per_rev = 200;
 
 #define motorInterfaceType 1
 AccelStepper motor(motorInterfaceType, STEP, DIR);
-
-int main()
-{
-  // set up the motor...duh
-  setup();
-
-  // loop sensor data until deployment is needed
-  standyBy();
-
-  deployHor();
-  orient();
-  deployVert();
-
-  // TODO: call RF functions
-}
+Adafruit_BNO055 bno = Adafruit_BNO055(55);
 
 void setup()
 {
@@ -52,35 +38,64 @@ void setup()
   motor.setMaxSpeed(1000);
   motor.setAcceleration(60);
   motor.setSpeed(200);
-
   // this is the distance the motor will go, not to critical but needs to be tested
   motor.moveTo(200);
-}
 
-void standBy()
-{
-  // TODO iterate data to determine state
+  Serial.println("Orientation Sensor Test");
+  Serial.println("");
 
-  return
-}
+  /* Initialise the sensor */
+  if (!bno.begin())
+  {
+    /* There was a problem detecting the BNO055 ... check your connections */
+    Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
+    while (1)
+      ;
+  }
+  delay(1000);
 
-int deployHor()
-{
-  // TODO: run motor for predetermined time until camera module exits rocket
-  motor.runToPosition();
-  return 0;
-}
+  bno.setExtCrystalUse(true);
 
-int orient()
-{
-  // TODO: loop run until camera is vertical
+  Serial.print("Setup done: ");
+
+  delay(1000);
+
+  // wait in standby mode and loop until landed
+  Serial.print("Standing By");
   while (...)
   {
+  }
+
+  delay(1000);
+  // After landing deploy horizontally
+  Serial.print("Deploying Horizontlally");
+  motor.runToPosition();
+
+  delay(1000);
+  // orient
+  Serial.print("Orienting");
+  sensors_event_t event;
+  bno.getEvent(&event);
+  while ((event.orientation.x - verticalValue) > 10)
+  {
+    // Serial.print("Orientation: ");
+    // Serial.print(event.orientation.x, 4);
     motor.move(1);
     motor.run();
+    sensors_event_t event;
+    bno.getEvent(&event);
   }
+  Serial.print("Orientation Complete");
+
+  delay(1000);
+
+  // deploy vertically
+  Serial.print("Deploying Vertically");
+
+  Serial.print("Standing By for Camera commands...");
 }
 
-int deployVert()
+// standby for RF commands
+void loop()
 {
 }
