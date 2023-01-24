@@ -2,7 +2,7 @@
 
 int main()
 {
-    // set up the motor...duh
+    // set up the motor ... duh
     setup();
 
     // loop sensor data until deployment is needed
