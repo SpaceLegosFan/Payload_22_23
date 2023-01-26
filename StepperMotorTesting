@@ -13,7 +13,8 @@ AccelStepper CameraStepper(motorInterfaceType, STEP, DIR);
 // System Properties
 float travel_distance = 8.63 // ask spencer or https://drive.google.com/drive/u/0/folders/1Yd59MVs0kGjNgtfuYpVg5CDFZwnHGlRj
 
-// Lead Screw Properties
+// Lead Screw Properties 
+// Part link https://www.mcmaster.com/8677N21/
 float num_steps = 400; // steps per rotation; this would be if we are half-stepping (units: steps/revolution)
 float travel_distance_per_full_step = 0.00125 // inches/step
 
