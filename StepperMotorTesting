@@ -1,0 +1,35 @@
+// NDRT Stepper Motor Testing
+// Link to example: https://microcontrollerslab.com/stepper-motor-a4988-driver-module-esp32/
+
+#include <AccelStepper.h>
+
+const int DIR = 12;
+const int STEP = 14;
+
+#define motorInterfaceType 1
+AccelStepper LeadScrewStepper(motorInterfaceType, STEP, DIR);
+AccelStepper CameraStepper(motorInterfaceType, STEP, DIR);
+
+// System Properties
+float travel_distance = 8.63 // ask spencer or https://drive.google.com/drive/u/0/folders/1Yd59MVs0kGjNgtfuYpVg5CDFZwnHGlRj
+
+// Lead Screw Properties
+float num_steps = 400; // steps per rotation; this would be if we are half-stepping (units: steps/revolution)
+float travel_distance_per_full_step = 0.00125 // inches/step
+
+//Motion Calculations
+float num_deployment_LeadScrew_steps = float travel_distance / float travel_distance_per_full_step
+
+void setup() {
+  Serial.begin(115200);
+  
+  // Lead Screw Stepper (Primary)
+  LeadScrewStepper.setMaxSpeed(1000);
+  LeadScrewStepper.setAcceleration(60);
+  LeadScrewStepper.setSpeed(200);
+  LeadScrewStepper.moveTo(num_deployment_LeadScrew_steps);
+  LeadScrewStepper.runSpeedToPosition(); // Blocks until all are in position
+}
+
+void loop() {
+}
