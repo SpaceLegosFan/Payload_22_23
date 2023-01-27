@@ -120,13 +120,21 @@ void setup()
   // After landing, deploy horizontally
   Serial.print("Deploying Horizontlally. Standby for spinning.\n");
   standby = true;
-  float prevXAngle = bno.getVector(Adafruit_BNO055::VECTOR_EULER).x();
+  imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+  imu::Quaternion quat = bno.getQuat();
+  float yy = quat.y() * quat.y();
+  float roll = atan2(2 * (quat.w() * quat.x() + quat.y() * quat.z()), 1 - 2 * (quat.x() * quat.x() + yy));
+  float prevXAngle = 57.2958 * roll;
   delay(100);
   motor.setSpeed(MOTOR_LINEAR_SPEED);
   motor.run(); // Spins (clockwise?) (To spin counterclockwise, set the motor speed above to -MOTOR_LINEAR_SPEED)
   while(standby == true){
-    float xAngle = bno.getVector(Adafruit_BNO055::VECTOR_EULER).x();
-    float xAngleDifference = xAngle - prevXAngle;
+  imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+  imu::Quaternion quat = bno.getQuat();
+  float yy1 = quat.y() * quat.y();
+  float roll1 = atan2(2 * (quat.w() * quat.x() + quat.y() * quat.z()), 1 - 2 * (quat.x() * quat.x() + yy1));
+  float xAngle = 57.2958 * roll1;    
+  float xAngleDifference = xAngle - prevXAngle;
     Serial.print(xAngleDifference);
     Serial.print("\n");
     if(xAngleDifference < 0){
@@ -147,11 +155,13 @@ void setup()
 
   // Orient
   Serial.print("Orienting\n");
-  imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+  float yy2 = quat.y() * quat.y();
+  float roll2 = atan2(2 * (quat.w() * quat.x() + quat.y() * quat.z()), 1 - 2 * (quat.x() * quat.x() + yy2));
+  float eulerx = 57.2958 * roll2;    
   motor.setMaxSpeed(MOTOR_ROTATION_SPEED);
   motor.setSpeed(MOTOR_ROTATION_SPEED);
   motor.run(); // Spins (clockwise?) (To spin counterclockwise, set the motor speed above to -MOTOR_LINEAR_SPEED)
-  while (!(euler.x() > 269 && euler.x() < 271))
+  while (!(eulerx > 269 && eulerx < 271))
   {
     //Serial.print(euler.x());
     Serial.print("\n");
