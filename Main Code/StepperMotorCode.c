@@ -14,88 +14,249 @@ Add ESP32 to Arduino IDE: https://randomnerdtutorials.com/installing-the-esp32-b
 Reference Example: https://microcontrollerslab.com/stepper-motor-a4988-driver-module-esp32/
 *********** */
 // https://learn.adafruit.com/adafruit-bno055-absolute-orientation-sensor/arduino-code
-//  this code was copied from the ESP32 reference example: https://microcontrollerslab.com/stepper-motor-a4988-driver-module-esp32/
 #include <AccelStepper.h>
-#include <AccelerometerCode.c>
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
 
-// this depends on the GPIO pins we solder
+// This code defines the DIR and STEP pin for the stepper motor (Dependent on the pins we solder) in order to initialize an instance of the AccelStepper class
 const int DIR = 12;
 const int STEP = 14;
-
 const int steps_per_rev = 200;
+const int MOTOR_LINEAR_SPEED = 1000; // Speed for when the payload is extending horizontally outside the payload tube
+const int MOTOR_ROTATION_SPEED = 200; // Speed for when the payload is already fully extended outside the payload tube and is spinning to get to the correct orientation
+AccelStepper motor(AccelStepper::DRIVER, STEP, DIR);
 
-#define motorInterfaceType 1
-AccelStepper motor(motorInterfaceType, STEP, DIR);
-Adafruit_BNO055 bno = Adafruit_BNO055(55);
+Adafruit_BNO055 bno = Adafruit_BNO055(55); // Create instance of BNO055 sensor
+
+// Setup for Hunter's code
+imu::Vector<3>* accelerationQueue;
+imu::Vector<3>* gyroQueue;
+int size;
+const float ACCELERATION_LAND_TOLERANCE = .3;
+const float GYRO_LAND_TOLERANCE = 5;
+const float ACCELERATION_LAUNCH_TOLERANCE = 15;
+const int TIME_BETWEEN_UPDATES = 100; // time in ms
+const float SPINNING_DEGREE_THRESHOLD = 5;
 
 void setup()
 {
   Serial.begin(115200);
-  motor.setMaxSpeed(1000);
-  motor.setAcceleration(60);
-  motor.setSpeed(200);
-  // this is the distance the motor will go, not to critical but needs to be tested
-  motor.moveTo(200);
+  motor.setMaxSpeed(MOTOR_LINEAR_SPEED); // Sets the max speed the stepper motor can reach
+  motor.setAcceleration(100); // Sets the acceleration rate of the stepper motor
 
-  Serial.println("Orientation Sensor Test");
-  Serial.println("");
+  // Ensures the system, accerometer, and gyroscope are calibrated adequately
+  Serial.println("Orientation Sensor Testing...\n");
+  uint8_t system, gyro, accel, mag = 0;
+  while(system < 1 || gyro < 1 || accel < 1){
+    bno.getCalibration(&system, &gyro, &accel, &mag);
+    Serial.print("CALIBRATION: Sys=");
+    Serial.print(system, DEC);
+    Serial.print(" Gyro=");
+    Serial.print(gyro, DEC);
+    Serial.print(" Accel=");
+    Serial.print(accel, DEC);
+    Serial.print("\n");
+    delay(200);
+  }
+
+  // Setup for Hunter's code
+  size = 0;
+  accelerationQueue = new imu::Vector<3>[10];
+  gyroQueue = new imu::Vector<3>[10];
+
+
 
   /* Initialise the sensor */
   if (!bno.begin())
   {
     /* There was a problem detecting the BNO055 ... check your connections */
-    Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
+    Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!\n");
     while (1)
       ;
   }
   delay(1000);
-
   bno.setExtCrystalUse(true);
-
-  Serial.print("Setup done");
-
+  Serial.print("Setup done\n");
   delay(1000);
+
+
+
+
+  // wait in standby mode and loop until takeoff
+  Serial.print("Standing By for Launch\n");
+  bool standby = true;
+  while (standby == true)
+  {
+    updateLaunch();
+    standby = !checkLaunch();
+    if (standby == false){
+      delay(TIME_BETWEEN_UPDATES);
+    }
+  }
+  Serial.print("We Have Launched!\n");
+
+
+
 
   // wait in standby mode and loop until landed
-  Serial.print("Standing By");
-  while (...)
-  {
+  Serial.print("Standing By for Landing\n");
+  standby=true;
+  while(standby == true){
+    updateLanding();
+
+    standby = !checkLanding;
+    if(standby == false){
+      delay(TIME_BETWEEN_UPDATES);
+    }
   }
-
+  Serial.print("We Have Landed!\n");
   delay(1000);
-  // After landing deploy horizontally
-  Serial.print("Deploying Horizontlally");
-  motor.runToPosition();
 
-  delay(1000);
-  // orient
-  Serial.print("Orienting");
-  sensors_event_t event;
-  bno.getEvent(&event);
-  while ((event.orientation.x - verticalValue) > 10)
-  {
-    // Serial.print("Orientation: ");
-    // Serial.print(event.orientation.x, 4);
-    motor.move(1);
-    motor.run();
-    bno.getEvent(&event);
+
+
+
+  // After landing, deploy horizontally
+  Serial.print("Deploying Horizontlally. Standby for spinning.\n");
+  standby = true;
+  float prevXAngle = bno.getVector(Adafruit_BNO055::VECTOR_EULER).x();
+  delay(100);
+  motor.setSpeed(MOTOR_LINEAR_SPEED);
+  motor.run(); // Spins (clockwise?) (To spin counterclockwise, set the motor speed above to -MOTOR_LINEAR_SPEED)
+  while(standby == true){
+    float xAngle = bno.getVector(Adafruit_BNO055::VECTOR_EULER).x();
+    float xAngleDifference = xAngle - prevXAngle;
+    Serial.print(xAngleDifference);
+    Serial.print("\n");
+    if(xAngleDifference < 0){
+      xAngleDifference = -xAngleDifference;
+    }
+    if (xAngleDifference > SPINNING_DEGREE_THRESHOLD) {
+      Serial.println("Spinning detected!");
+      motor.stop();
+      standby=false;
+    }
+    prevXAngle = xAngle;
+    delay(TIME_BETWEEN_UPDATES);
   }
-
-  Serial.print("Orientation Complete");
-
   delay(1000);
+
+
+
+
+  // Orient
+  Serial.print("Orienting\n");
+  imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+  motor.setMaxSpeed(MOTOR_ROTATION_SPEED);
+  motor.setSpeed(MOTOR_ROTATION_SPEED);
+  motor.run(); // Spins (clockwise?) (To spin counterclockwise, set the motor speed above to -MOTOR_LINEAR_SPEED)
+  while (!(euler.x() > 269 && euler.x() < 271))
+  {
+    //Serial.print(euler.x());
+    Serial.print("\n");
+    euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+  }
+  motor.stop();
+  Serial.print("Orientation Complete\n");
+  delay(1000);
+
+
 
   // deploy vertically
-  Serial.print("Deploying Vertically");
+  Serial.print("Deploying Vertically\n");
+  /*
 
-  Serial.print("Standing By for Camera commands...");
+    Code to deploy vertically goes here
+
+  */
+  delay(5000);
+  Serial.print("Standing By for Camera commands...\n");
 }
 
+
+
+
 // standby for RF commands
-void loop()
-{
+void loop() {
+}
+
+
+
+
+/*
+  Updates the acceleration vectors in the acceleration queue to be used by the checkLaunch() function to check for a launch
+*/
+void updateLaunch() {
+  if (size >= 2) {
+    for (int i = 0; i < 1; i++) {
+      accelerationQueue[i] = accelerationQueue[i+1];
+    }
+    size--;
+  }
+  accelerationQueue[size] = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
+  size++;
+}
+
+
+
+
+/* 
+  Using the acceleration queue, calculates the average acceleration for the last 10 points
+  If the acceleration average is greater than the launch acceleration tolerance, returns true saying the rocket has launched
+*/
+bool checkLaunch() {
+  
+  float a_avg = 0;
+  for (int i = 0; i < size; i++) {
+    a_avg += accelerationQueue[i].magnitude();
+  }
+  a_avg /= size;
+  if (a_avg > ACCELERATION_LAUNCH_TOLERANCE == true) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+
+
+
+/*
+  Updates the acceleration and gyro vectors in their respective queues to be used by the checkLanding() function to check for landing
+*/
+void updateLanding() {
+  if (size >= 10) {
+    for (int i = 0; i < 9; i++) {
+      accelerationQueue[i] = accelerationQueue[i+1];
+      gyroQueue[i] = gyroQueue[i+1];
+    }
+    size--;
+  }
+  accelerationQueue[size] = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
+  gyroQueue[size] = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
+  size++;
+}
+
+
+
+
+/* 
+  Using the acceleration and gyro queues, calculates the average acceleration and gyroscopic motion for the last 10 points
+  If the acceleration and gyro averages are less than their respective landing tolerances, returns true saying the rocket has landed
+*/
+bool checkLanding() {
+  float accelerationAverage = 0;
+  float gyroAverage = 0;
+  for (int i = 0; i < size; i++) {
+    accelerationAverage += accelerationQueue[i].magnitude();
+    gyroAverage += gyroQueue[i].magnitude();
+  }
+  accelerationAverage /= size;
+  gyroAverage /= size;
+  if (accelerationAverage < ACCELERATION_LAND_TOLERANCE && gyroAverage < GYRO_LAND_TOLERANCE) {
+    return true;
+  } else {
+    return false;
+  }
 }
