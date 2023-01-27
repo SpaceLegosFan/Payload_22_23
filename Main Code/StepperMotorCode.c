@@ -31,6 +31,8 @@ AccelStepper motor(AccelStepper::DRIVER, STEP, DIR);
 Adafruit_BNO055 bno = Adafruit_BNO055(55); // Create instance of BNO055 sensor
 
 // Setup for Hunter's code
+
+// We need to pull data from two accelerometers and aggregate it, perhaps a % comparison value?
 imu::Vector<3>* accelerationQueue;
 imu::Vector<3>* gyroQueue;
 int size;
@@ -214,6 +216,8 @@ void updateLaunch() {
 /* 
   Using the acceleration queue, calculates the average acceleration for the last 10 points
   If the acceleration average is greater than the launch acceleration tolerance, returns true saying the rocket has launched
+
+Question: Why do we need to know when the rocket has launched?
 */
 bool checkLaunch() {
   
@@ -254,6 +258,9 @@ void updateLanding() {
 /* 
   Using the acceleration and gyro queues, calculates the average acceleration and gyroscopic motion for the last 10 points
   If the acceleration and gyro averages are less than their respective landing tolerances, returns true saying the rocket has landed
+  
+Question: Is this a calculation of linear acceleration or IMU acceleration, we may need to convert it (or does it matter all things being equal?)?
+How do we determine between real linear acceleration and Coriolis linear acceleration? Does that matter due to bouncing issues?
 */
 bool checkLanding() {
   float accelerationAverage = 0;
