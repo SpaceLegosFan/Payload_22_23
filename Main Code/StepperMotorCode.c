@@ -36,7 +36,7 @@ imu::Vector<3>* gyroQueue;
 int size;
 const float ACCELERATION_LAND_TOLERANCE = .3;
 const float GYRO_LAND_TOLERANCE = 5;
-const float ACCELERATION_LAUNCH_TOLERANCE = 15;
+const float ACCELERATION_LAUNCH_TOLERANCE = 20;
 const int TIME_BETWEEN_UPDATES = 100; // time in ms
 const float SPINNING_DEGREE_THRESHOLD = 5;
 
