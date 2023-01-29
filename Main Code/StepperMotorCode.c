@@ -65,7 +65,7 @@ void setup()
   // Ensures the system, accerometer, and gyroscope are calibrated adequately
   Serial.println("Orientation Sensor Testing...\n");
   uint8_t system, gyro, accel, mag = 0;
-  while(system < 1 || gyro < 1 || accel < 1){
+  while(/*system < 1 || */gyro < 1 || accel < 1){
     bno.getCalibration(&system, &gyro, &accel, &mag);
     Serial.print("CALIBRATION: Sys=");
     Serial.print(system, DEC);
