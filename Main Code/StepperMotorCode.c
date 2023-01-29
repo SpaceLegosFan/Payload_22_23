@@ -47,6 +47,20 @@ void setup()
   Serial.begin(115200);
   motor.setMaxSpeed(MOTOR_LINEAR_SPEED); // Sets the max speed the stepper motor can reach
   motor.setAcceleration(100); // Sets the acceleration rate of the stepper motor
+  
+  
+  /* Initialise the sensor */
+  if (!bno.begin())
+  {
+    /* There was a problem detecting the BNO055 ... check your connections */
+    Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!\n");
+    while (1)
+      ;
+  }
+  delay(1000);
+  bno.setExtCrystalUse(true);
+  
+  
 
   // Ensures the system, accerometer, and gyroscope are calibrated adequately
   Serial.println("Orientation Sensor Testing...\n");
@@ -69,17 +83,7 @@ void setup()
   gyroQueue = new imu::Vector<3>[10];
 
 
-
-  /* Initialise the sensor */
-  if (!bno.begin())
-  {
-    /* There was a problem detecting the BNO055 ... check your connections */
-    Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!\n");
-    while (1)
-      ;
-  }
-  delay(1000);
-  bno.setExtCrystalUse(true);
+  
   Serial.print("Setup done\n");
   delay(1000);
 
