@@ -3,12 +3,18 @@
 
 #include <AccelStepper.h>
 
-const int DIR = 12;
-const int STEP = 14;
+// Pins for pre-prototyping lead screw
+//B2 RED
+//A2 BLUE
+//A1 GREEN
+//B1 BLACK
+//
+const int DIR = 2;
+const int STEP = 3;
 
 #define motorInterfaceType 1
 AccelStepper LeadScrewStepper(motorInterfaceType, STEP, DIR);
-AccelStepper CameraStepper(motorInterfaceType, STEP, DIR);
+//AccelStepper CameraStepper(motorInterfaceType, STEP, DIR);
 
 // System Properties
 float travel_distance = 8.63; // ask spencer or https://drive.google.com/drive/u/0/folders/1Yd59MVs0kGjNgtfuYpVg5CDFZwnHGlRj
@@ -22,15 +28,23 @@ float travel_distance_per_full_step = 0.00125; // inches/step
 float num_deployment_LeadScrew_steps = travel_distance / travel_distance_per_full_step;
 
 void setup() {
+  pinMode(STEP, OUTPUT);
+  pinMode(DIR, OUTPUT);
   Serial.begin(115200);
   
   // Lead Screw Stepper (Primary)
   LeadScrewStepper.setMaxSpeed(1000);
-  LeadScrewStepper.setAcceleration(60);
-  LeadScrewStepper.setSpeed(200);
+  LeadScrewStepper.setAcceleration(300);
+  LeadScrewStepper.setSpeed(700);
   LeadScrewStepper.moveTo(num_deployment_LeadScrew_steps);
-  LeadScrewStepper.runSpeedToPosition(); // Blocks until all are in position
+  //LeadScrewStepper.runSpeedToPosition(); // Blocks until all are in position
 }
 
 void loop() {
+// Change direction once the motor reaches target position
+  if (LeadScrewStepper.distanceToGo() == 0) 
+    LeadScrewStepper.moveTo(-LeadScrewStepper.currentPosition());
+
+  // Move the motor one step
+  LeadScrewStepper.run();
 }
