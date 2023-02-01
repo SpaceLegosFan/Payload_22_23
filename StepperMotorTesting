@@ -16,6 +16,8 @@
 //A1 BLUE
 //B1 RED
 
+// Stepper Motor starts in the up direction! Major sure actuation is moving up!
+
 
 
 
@@ -48,7 +50,7 @@ void setup() {
   LeadScrewStepper.setMaxSpeed(800);
   LeadScrewStepper.setAcceleration(1000);
   LeadScrewStepper.setSpeed(500);
-  LeadScrewStepper.moveTo(num_deployment_LeadScrew_steps);
+  LeadScrewStepper.moveTo(-num_deployment_LeadScrew_steps);
   //LeadScrewStepper.runSpeedToPosition(); // Blocks until all are in position
 }
 
