@@ -14,6 +14,24 @@ Add ESP32 to Arduino IDE: https://randomnerdtutorials.com/installing-the-esp32-b
 Reference Example: https://microcontrollerslab.com/stepper-motor-a4988-driver-module-esp32/
 *********** */
 // https://learn.adafruit.com/adafruit-bno055-absolute-orientation-sensor/arduino-code
+
+
+
+// Pins for pre-prototyping lead screw
+//B2 RED.  
+//A2 BLUE
+//A1 GREEN
+//B1 BLACK
+//
+
+// Pins for full-scale lead screw(color of the heat shrinks)
+//B2 YELLLOW
+//A2 WHITE
+//A1 BLUE
+//B1 RED
+
+
+
 #include <AccelStepper.h>
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
@@ -21,14 +39,28 @@ Reference Example: https://microcontrollerslab.com/stepper-motor-a4988-driver-mo
 #include <utility/imumaths.h>
 
 // This code defines the DIR and STEP pin for the stepper motor (Dependent on the pins we solder) in order to initialize an instance of the AccelStepper class
-const int DIR = 12;
-const int STEP = 14;
+const int DIR = 2;
+const int STEP = 4;
 const int steps_per_rev = 200;
 const int MOTOR_LINEAR_SPEED = 1000; // Speed for when the payload is extending horizontally outside the payload tube
 const int MOTOR_ROTATION_SPEED = 200; // Speed for when the payload is already fully extended outside the payload tube and is spinning to get to the correct orientation
-AccelStepper motor(AccelStepper::DRIVER, STEP, DIR);
+#define motorInterfaceType 1
+AccelStepper LeadScrewStepper(motorInterfaceType, STEP, DIR);
+float travel_distance = 9.6;//8.63; // ask spencer or https://drive.google.com/drive/u/0/folders/1Yd59MVs0kGjNgtfuYpVg5CDFZwnHGlRj
+// Lead Screw Properties 
+// Part link https://www.mcmaster.com/8677N21/
+float num_steps = 400; // steps per rotation; this would be if we are half-stepping (units: steps/revolution)
+float travel_distance_per_full_step = 0.00125; // inches/step
+//Motion Calculations
+float num_deployment_LeadScrew_steps = travel_distance / travel_distance_per_full_step;
+
+#define I2C_SDA 14
+#define I2C_SCL 15
+TwoWire I2CSensors = TwoWire(0);
 
 Adafruit_BNO055 bno = Adafruit_BNO055(55); // Create instance of BNO055 sensor
+
+
 
 // Setup for Hunter's code
 
@@ -44,9 +76,16 @@ const float SPINNING_DEGREE_THRESHOLD = 5;
 
 void setup()
 {
+  I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
+  pinMode(STEP, OUTPUT);
+  pinMode(DIR, OUTPUT);
   Serial.begin(115200);
-  motor.setMaxSpeed(MOTOR_LINEAR_SPEED); // Sets the max speed the stepper motor can reach
-  motor.setAcceleration(100); // Sets the acceleration rate of the stepper motor
+  LeadScrewStepper.setMaxSpeed(MOTOR_LINEAR_SPEED); // Sets the max speed the stepper motor can reach
+  LeadScrewStepper.setAcceleration(100); // Sets the acceleration rate of the stepper motor
+  LeadScrewStepper.setMaxSpeed(800);
+  LeadScrewStepper.setAcceleration(1000);
+  LeadScrewStepper.setSpeed(500);
+  LeadScrewStepper.moveTo(num_deployment_LeadScrew_steps);
   
   
   /* Initialise the sensor */
@@ -132,8 +171,7 @@ void setup()
   float roll = atan2(2 * (quat.w() * quat.x() + quat.y() * quat.z()), 1 - 2 * (quat.x() * quat.x() + yy));
   float prevXAngle = 57.2958 * roll;
   delay(100);
-  motor.setSpeed(MOTOR_LINEAR_SPEED);
-  motor.run(); // Spins (clockwise?) (To spin counterclockwise, set the motor speed above to -MOTOR_LINEAR_SPEED)
+  LeadScrewStepper.run();
   while(standby == true){
   imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
   imu::Quaternion quat = bno.getQuat();
@@ -148,7 +186,6 @@ void setup()
     }
     if (xAngleDifference > SPINNING_DEGREE_THRESHOLD) {
       Serial.println("Spinning detected!");
-      motor.stop();
       standby=false;
     }
     prevXAngle = xAngle;
@@ -164,16 +201,16 @@ void setup()
   float yy2 = quat.y() * quat.y();
   float roll2 = atan2(2 * (quat.w() * quat.x() + quat.y() * quat.z()), 1 - 2 * (quat.x() * quat.x() + yy2));
   float eulerx = 57.2958 * roll2;    
-  motor.setMaxSpeed(MOTOR_ROTATION_SPEED);
-  motor.setSpeed(MOTOR_ROTATION_SPEED);
-  motor.run(); // Spins (clockwise?) (To spin counterclockwise, set the motor speed above to -MOTOR_LINEAR_SPEED)
+  //LeadScrewStepper.setMaxSpeed(MOTOR_ROTATION_SPEED);
+  //LeadScrewStepper.setSpeed(MOTOR_ROTATION_SPEED);
+  //LeadScrewStepper.run(); // Spins (clockwise?) (To spin counterclockwise, set the motor speed above to -MOTOR_LINEAR_SPEED)
   while (!(eulerx > 269 && eulerx < 271))
   {
     //Serial.print(euler.x());
     Serial.print("\n");
     euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
   }
-  motor.stop();
+  //LeadScrewStepper.stop();
   Serial.print("Orientation Complete\n");
   delay(1000);
 
