@@ -42,27 +42,27 @@ Reference Example: https://microcontrollerslab.com/stepper-motor-a4988-driver-mo
 const int DIR = 2;
 const int STEP = 4;
 const int steps_per_rev = 200;
-const int MOTOR_LINEAR_SPEED = 1000; // Speed for when the payload is extending horizontally outside the payload tube
-const int MOTOR_ROTATION_SPEED = 200; // Speed for when the payload is already fully extended outside the payload tube and is spinning to get to the correct orientation
 #define motorInterfaceType 1
 AccelStepper LeadScrewStepper(motorInterfaceType, STEP, DIR);
+
+
 float travel_distance = 9.6;//8.63; // ask spencer or https://drive.google.com/drive/u/0/folders/1Yd59MVs0kGjNgtfuYpVg5CDFZwnHGlRj
+
+
 // Lead Screw Properties 
 // Part link https://www.mcmaster.com/8677N21/
 float num_steps = 400; // steps per rotation; this would be if we are half-stepping (units: steps/revolution)
 float travel_distance_per_full_step = 0.00125; // inches/step
+
+
 //Motion Calculations
 float num_deployment_LeadScrew_steps = travel_distance / travel_distance_per_full_step;
 
+// I2C Accelerometer Interface
 #define I2C_SDA 14
 #define I2C_SCL 15
 TwoWire I2CSensors = TwoWire(0);
-
 Adafruit_BNO055 bno = Adafruit_BNO055(55); // Create instance of BNO055 sensor
-
-
-
-// Setup for Hunter's code
 
 // We need to pull data from two accelerometers and aggregate it, perhaps a % comparison value?
 imu::Vector<3>* accelerationQueue;
@@ -72,7 +72,6 @@ const float ACCELERATION_LAND_TOLERANCE = .3;
 const float GYRO_LAND_TOLERANCE = 5;
 const float ACCELERATION_LAUNCH_TOLERANCE = 20;
 const int TIME_BETWEEN_UPDATES = 100; // time in ms
-const float SPINNING_DEGREE_THRESHOLD = 5;
 
 void setup()
 {
@@ -80,12 +79,10 @@ void setup()
   pinMode(STEP, OUTPUT);
   pinMode(DIR, OUTPUT);
   Serial.begin(115200);
-  LeadScrewStepper.setMaxSpeed(MOTOR_LINEAR_SPEED); // Sets the max speed the stepper motor can reach
-  LeadScrewStepper.setAcceleration(100); // Sets the acceleration rate of the stepper motor
   LeadScrewStepper.setMaxSpeed(800);
   LeadScrewStepper.setAcceleration(1000);
   LeadScrewStepper.setSpeed(500);
-  LeadScrewStepper.moveTo(num_deployment_LeadScrew_steps);
+  LeadScrewStepper.moveTo(-num_deployment_LeadScrew_steps);
   
   
   /* Initialise the sensor */
@@ -99,12 +96,12 @@ void setup()
   delay(1000);
   bno.setExtCrystalUse(true);
   
-  
+  /*  
 
   // Ensures the system, accerometer, and gyroscope are calibrated adequately
   Serial.println("Orientation Sensor Testing...\n");
   uint8_t system, gyro, accel, mag = 0;
-  while(/*system < 1 || */gyro < 1 || accel < 1){
+  while(system < 1 || gyro < 1 || accel < 1){
     bno.getCalibration(&system, &gyro, &accel, &mag);
     Serial.print("CALIBRATION: Sys=");
     Serial.print(system, DEC);
@@ -116,13 +113,15 @@ void setup()
     delay(200);
   }
 
-  // Setup for Hunter's code
+  */
+
   size = 0;
   accelerationQueue = new imu::Vector<3>[10];
   gyroQueue = new imu::Vector<3>[10];
 
 
   
+
   Serial.print("Setup done\n");
   delay(1000);
 
@@ -158,62 +157,40 @@ void setup()
   }
   Serial.print("We Have Landed!\n");
   delay(1000);
+  
 
 
 
 
-  // After landing, deploy horizontally
-  Serial.print("Deploying Horizontlally. Standby for spinning.\n");
-  standby = true;
-  imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+  // After landing, deploy camera assembly horizontally
+
   imu::Quaternion quat = bno.getQuat();
   float yy = quat.y() * quat.y();
   float roll = atan2(2 * (quat.w() * quat.x() + quat.y() * quat.z()), 1 - 2 * (quat.x() * quat.x() + yy));
-  float prevXAngle = 57.2958 * roll;
-  delay(100);
+  float initialXAngle = 57.2958 * roll;
+
+
+  Serial.print("Landed at ");
+  Serial.print(initialXAngle);
+  Serial.print(" degreess. Standby for horizontal motion.\n");
+
+  delay(1000);
+
   LeadScrewStepper.run();
-  while(standby == true){
-  imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
-  imu::Quaternion quat = bno.getQuat();
-  float yy1 = quat.y() * quat.y();
-  float roll1 = atan2(2 * (quat.w() * quat.x() + quat.y() * quat.z()), 1 - 2 * (quat.x() * quat.x() + yy1));
-  float xAngle = 57.2958 * roll1;    
-  float xAngleDifference = xAngle - prevXAngle;
-    Serial.print(xAngleDifference);
-    Serial.print("\n");
-    if(xAngleDifference < 0){
-      xAngleDifference = -xAngleDifference;
-    }
-    if (xAngleDifference > SPINNING_DEGREE_THRESHOLD) {
-      Serial.println("Spinning detected!");
-      standby=false;
-    }
-    prevXAngle = xAngle;
-    delay(TIME_BETWEEN_UPDATES);
-  }
+  Serial.print("Done deploying Horizontally. Standby for camera orientation.");
+
+  LeadScrewStepper.moveTo(-initialXAngle/1.8);
   delay(1000);
 
 
 
-
-  // Orient
+  // Orientation
   Serial.print("Orienting\n");
-  float yy2 = quat.y() * quat.y();
-  float roll2 = atan2(2 * (quat.w() * quat.x() + quat.y() * quat.z()), 1 - 2 * (quat.x() * quat.x() + yy2));
-  float eulerx = 57.2958 * roll2;    
-  //LeadScrewStepper.setMaxSpeed(MOTOR_ROTATION_SPEED);
-  //LeadScrewStepper.setSpeed(MOTOR_ROTATION_SPEED);
-  //LeadScrewStepper.run(); // Spins (clockwise?) (To spin counterclockwise, set the motor speed above to -MOTOR_LINEAR_SPEED)
-  while (!(eulerx > 269 && eulerx < 271))
-  {
-    //Serial.print(euler.x());
-    Serial.print("\n");
-    euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
-  }
-  //LeadScrewStepper.stop();
+  
+  LeadScrewStepper.run();
+
   Serial.print("Orientation Complete\n");
   delay(1000);
-
 
 
   // deploy vertically
@@ -229,11 +206,9 @@ void setup()
 
 
 
-
 // standby for RF commands
 void loop() {
 }
-
 
 
 
