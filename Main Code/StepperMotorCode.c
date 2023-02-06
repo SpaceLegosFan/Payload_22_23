@@ -24,18 +24,19 @@ Reference Example: https://microcontrollerslab.com/stepper-motor-a4988-driver-mo
 //B1 BLACK
 //
 
-// Pins for full-scale lead screw(color of the heat shrinks)
+// Pins for full-scale lead screw (color of the heat shrinks)
 //B2 YELLLOW
 //A2 WHITE
 //A1 BLUE
 //B1 RED
 
 
-
+#include <SPI.h>
 #include <AccelStepper.h>
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
+#include "RTClib.h"
 #include <utility/imumaths.h>
 
 // This code defines the DIR and STEP pin for the stepper motor (Dependent on the pins we solder) in order to initialize an instance of the AccelStepper class
@@ -54,9 +55,13 @@ float travel_distance = 9.6;//8.63; // ask spencer or https://drive.google.com/d
 float num_steps = 400; // steps per rotation; this would be if we are half-stepping (units: steps/revolution)
 float travel_distance_per_full_step = 0.00125; // inches/step
 
-
 //Motion Calculations
 float num_deployment_LeadScrew_steps = travel_distance / travel_distance_per_full_step;
+
+// I2C RTC Clock Interface
+RTC_DS3231 rtc;
+char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+
 
 // I2C Accelerometer Interface
 #define I2C_SDA 14
@@ -84,6 +89,15 @@ void setup()
   LeadScrewStepper.setSpeed(500);
   LeadScrewStepper.moveTo(-num_deployment_LeadScrew_steps);
   
+  //Initalize Clock
+  if (! rtc.begin()) 
+  {
+  Serial.println("Couldn't find RTC");
+  } 
+  rtc.adjust(DateTime(__DATE__, __TIME__));
+  DateTime now = rtc.now();
+
+
   
   /* Initialise the sensor */
   if (!bno.begin())
@@ -122,14 +136,14 @@ void setup()
 
   
 
-  Serial.print("Setup done\n");
+  Serial.print("Setup done!\n");
   delay(1000);
 
 
 
 
   // wait in standby mode and loop until takeoff
-  Serial.print("Standing By for Launch\n");
+  Serial.print("Standing By for Launch!\n");
   bool standby = true;
   while (standby == true)
   {
@@ -139,7 +153,18 @@ void setup()
       delay(TIME_BETWEEN_UPDATES);
     }
   }
-  Serial.print("We Have Launched!\n");
+  Serial.print("We have launched!\n");
+
+  // Time print block.
+
+  Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);
+  Serial.println(now.year(), DEC);
+  Serial.println(now.month(), DEC);
+  Serial.println(now.day(), DEC);
+  Serial.println(now.hour(), DEC);
+  Serial.println(now.minute(), DEC);
+  Serial.println(now.second(), DEC);
+  Serial.println("-----------");
 
 
 
@@ -155,7 +180,19 @@ void setup()
       delay(TIME_BETWEEN_UPDATES);
     }
   }
-  Serial.print("We Have Landed!\n");
+  Serial.print("We have landed!\n");
+
+  // Time print block.
+
+  Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);
+  Serial.println(now.year(), DEC);
+  Serial.println(now.month(), DEC);
+  Serial.println(now.day(), DEC);
+  Serial.println(now.hour(), DEC);
+  Serial.println(now.minute(), DEC);
+  Serial.println(now.second(), DEC);
+  Serial.println("-----------");
+
   delay(1000);
   
 
@@ -172,12 +209,24 @@ void setup()
 
   Serial.print("Landed at ");
   Serial.print(initialXAngle);
-  Serial.print(" degreess. Standby for horizontal motion.\n");
+  Serial.print(" degrees. Standby for horizontal motion.\n");
+  
+  // Time print block.
+
+  Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);
+  Serial.println(now.year(), DEC);
+  Serial.println(now.month(), DEC);
+  Serial.println(now.day(), DEC);
+  Serial.println(now.hour(), DEC);
+  Serial.println(now.minute(), DEC);
+  Serial.println(now.second(), DEC);
+  Serial.println("-----------");
+
 
   delay(1000);
 
   LeadScrewStepper.run();
-  Serial.print("Done deploying Horizontally. Standby for camera orientation.");
+  Serial.print("Done deploying horizontally. Standby for camera orientation.");
 
   LeadScrewStepper.moveTo(-initialXAngle/1.8);
   delay(1000);
@@ -185,16 +234,16 @@ void setup()
 
 
   // Orientation
-  Serial.print("Orienting\n");
+  Serial.print("Orientin!g\n");
   
   LeadScrewStepper.run();
 
-  Serial.print("Orientation Complete\n");
+  Serial.print("Orientation Complete!\n");
   delay(1000);
 
 
   // deploy vertically
-  Serial.print("Deploying Vertically\n");
+  Serial.print("Deploying Vertically!\n");
   /*
 
     Code to deploy vertically goes here
