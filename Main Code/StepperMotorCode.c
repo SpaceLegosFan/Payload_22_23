@@ -89,7 +89,7 @@ void setup()
   LeadScrewStepper.setSpeed(500);
   LeadScrewStepper.moveTo(-num_deployment_LeadScrew_steps);
   
-  //Initalize Clock
+  // Initalize Clock
   if (! rtc.begin()) 
   {
   Serial.println("Couldn't find RTC");
@@ -234,7 +234,7 @@ void setup()
 
 
   // Orientation
-  Serial.print("Orientin!g\n");
+  Serial.print("Orienting!\n");
   
   LeadScrewStepper.run();
 
