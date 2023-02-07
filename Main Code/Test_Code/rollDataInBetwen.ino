@@ -13,7 +13,8 @@ float rollDegBottom = 180;
 
 Adafruit_BNO055 bno = Adafruit_BNO055();
 
-void setup(void) {
+void setup(void)
+{
 
   Serial.begin(115200);
 
@@ -25,39 +26,39 @@ void setup(void) {
   bno.setExtCrystalUse(true);
 }
 
-void loop() {
-  
+void loop()
+{
 
-  //Request Euler Angles from Sensor
+  // Request Euler Angles from Sensor
   imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
 
   // Request Quaternions from sensor
   imu::Quaternion quat = bno.getQuat();
-  
-  //Calculate Roll from Quaternions
+
+  // Calculate Roll from Quaternions
   float yy = quat.y() * quat.y();
 
   float roll = atan2(2 * (quat.w() * quat.x() + quat.y() * quat.z()), 1 - 2 * (quat.x() * quat.x() + yy));
 
-  //Convert to Degrees
-  float rollDeg  = 57.2958 * roll;
+  // Convert to Degrees
+  float rollDeg = 57.2958 * roll;
 
-  //In Between Values
+  // In Between Values
   int rollDegGreater = 1.1 * abs(rollDeg);
   int rollDegLesser = 0.9 * abs(rollDeg);
 
-  if (rollDegLesser <= rollDegBottom && rollDegBottom <= rollDegGreater ) {
+  if (rollDegLesser <= rollDegBottom && rollDegBottom <= rollDegGreater)
+  {
     Serial.print(rollDeg);
     Serial.println();
     Serial.print("In Between");
-    Serial.println(); 
+    Serial.println();
   }
-  else {
+  else
+  {
     Serial.print("Not In Between");
-    Serial.println(); 
+    Serial.println();
   }
-
-
 
   delay(DELAY_MS);
 }
