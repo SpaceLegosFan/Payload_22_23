@@ -45,8 +45,6 @@ Reference Example: https://microcontrollerslab.com/stepper-motor-a4988-driver-mo
 
 //TwoWire I2CSensors = TwoWire(0);
 Adafruit_BNO055 bno = Adafruit_BNO055(/*-1, BNO055_ADDRESS_A, &I2CSensors*/);
-Adafruit_BNO055 bno2 = Adafruit_BNO055(/*-1, BNO055_ADDRESS_A, &I2CSensors*/);
-
 
 imu::Vector<3>* accelerationQueue;
 imu::Vector<3>* gyroQueue;
@@ -147,11 +145,17 @@ void setup(){
 
 
   // After landing, deploy camera assembly horizontally
+  
+  
+  
 
 
-  if  (checkRoll() == true)
-  {
+  standby=true; 
+  while(standby == true){
+  updateLanding();
 
+  standby = !checkLanding;
+  if(standby == false && checkRoll() == true){
   imu::Quaternion q = bno.getQuat();
   float yy = q.y() * q.y();
   float roll = atan2(2 * (q.w() * q.x() + q.y() * q.z()), 1 - 2 * (q.x() * q.x() + yy));
@@ -167,10 +171,9 @@ void setup(){
   storeEvent(buffer);
   storeEvent(" degrees. Standby for horizontal motion.");
 
-
-
   delay(1000);
 
+    }
   }
 
 
@@ -299,6 +302,7 @@ bool checkLanding() {
     return false;
   }
 }
+
 
 bool checkRoll() {
 
