@@ -45,6 +45,7 @@ Reference Example: https://microcontrollerslab.com/stepper-motor-a4988-driver-mo
 
 //TwoWire I2CSensors = TwoWire(0);
 Adafruit_BNO055 bno = Adafruit_BNO055(/*-1, BNO055_ADDRESS_A, &I2CSensors*/);
+Adafruit_BNO055 bno2 = Adafruit_BNO055(/*-1, BNO055_ADDRESS_A, &I2CSensors*/);
 
 imu::Vector<3>* accelerationQueue;
 imu::Vector<3>* gyroQueue;
@@ -150,12 +151,16 @@ void setup(){
   
 
 
-  standby=true; 
-  while(standby == true){
-  updateLanding();
+  bool standbyReg = true; 
+  while(standbyReg == true && checkRoll() == false)
+  {
+    updateLanding();
+    standbyReg = !checkLanding;
+    if(standbyReg == false){
+      delay(TIME_BETWEEN_UPDATES);
+    }
+  }
 
-  standby = !checkLanding;
-  if(standby == false && checkRoll() == true){
   imu::Quaternion q = bno.getQuat();
   float yy = q.y() * q.y();
   float roll = atan2(2 * (q.w() * q.x() + q.y() * q.z()), 1 - 2 * (q.x() * q.x() + yy));
@@ -172,9 +177,6 @@ void setup(){
   storeEvent(" degrees. Standby for horizontal motion.");
 
   delay(1000);
-
-    }
-  }
 
 
 
@@ -306,7 +308,8 @@ bool checkLanding() {
 
 bool checkRoll() {
 
-while (true) {
+while (checkLanding() == true) {
+  int countCheck = 0;
   float currentRoll = 0;
   float prevRoll = 0;
   currentRoll = prevRoll;
@@ -316,15 +319,49 @@ while (true) {
   float initialXAngle = 57.2958 * roll;
   currentRoll = initialXAngle;
 
-  storeData("currentRoll", currentRoll);
+  imu::Quaternion q2 = bno2.getQuat();
+  float yy2 = q2.y() * q2.y();
+  float roll2 = atan2(2 * (q2.w() * q2.x() + q2.y() * q2.z()), 1 - 2 * (q2.x() * q2.x() + yy2));
+  float initialX2Angle = 57.2958 * roll2;
 
-  if (prevRoll * 0.9 < currentRoll && currentRoll < prevRoll * 1.1) {
-    return true;
-  } 
-  delay(3000);
-}
+
+  // Within 20% of the two BNO055 roll values
+
+  if ( roll2 * 0.8 < roll && roll < roll2 * 1.2)
+    {
+        // Within 10% of the two roll values on the first BNO055
+
+      if (prevRoll * 0.9 < currentRoll && currentRoll < prevRoll * 1.1) {
+      return true;
+
+    }
+
+    // If a value can not come to a consesus within 5 polls, override the auxillary mechanism
+
+  else if (countCheck == 5)
+
+  {
+      if (prevRoll * 0.9 < currentRoll && currentRoll < prevRoll * 1.1) {
+      return true;
+
+  }
+
+  else if (countCheck != 5)
+  
+  {
+
+    countCheck++;
+
+  }
+  }
+
 }
 
+delay(3000);
+
+}
+
+}
 
 
 
