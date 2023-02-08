@@ -45,6 +45,8 @@ Reference Example: https://microcontrollerslab.com/stepper-motor-a4988-driver-mo
 
 //TwoWire I2CSensors = TwoWire(0);
 Adafruit_BNO055 bno = Adafruit_BNO055(/*-1, BNO055_ADDRESS_A, &I2CSensors*/);
+Adafruit_BNO055 bno2 = Adafruit_BNO055(/*-1, BNO055_ADDRESS_A, &I2CSensors*/);
+
 
 imu::Vector<3>* accelerationQueue;
 imu::Vector<3>* gyroQueue;
