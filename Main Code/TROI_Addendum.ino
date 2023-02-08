@@ -310,7 +310,9 @@ while (true) {
   float initialXAngle = 57.2958 * roll;
   currentRoll = initialXAngle;
 
-  if (prevRoll * 0.9 < currentRoll < prevRoll * 1.1) {
+  storeData("currentRoll", currentRoll);
+
+  if (prevRoll * 0.9 < currentRoll && currentRoll < prevRoll * 1.1) {
     return true;
   } 
   delay(3000);
