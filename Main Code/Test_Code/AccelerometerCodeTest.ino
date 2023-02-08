@@ -13,13 +13,14 @@
 
 DFRobot_LIS2DH12 LIS;
 
-void setup(){
+void setup()
+{
   Wire.begin();
   Serial.begin(115200);
-
 }
 
-void loop(){
+void loop()
+{
   acceleration();
 }
 
@@ -34,7 +35,6 @@ void acceleration(void)
   float yg = y * 0.01;
   float zg = z * 0.01;
 
-  float a = sqrt((x^2)+(y^2)+(z^2));
+  float a = sqrt((x ^ 2) + (y ^ 2) + (z ^ 2));
   Serial.print(a);
-
 }
