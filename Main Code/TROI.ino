@@ -42,9 +42,16 @@ Reference Example: https://microcontrollerslab.com/stepper-motor-a4988-driver-mo
 #include "SD.h"
 #include "SPI.h"
 #include "RTClib.h"
+#define I2C_SDA 21
+#define I2C_SCL 22
+#define I2C_SDA2 32
+#define I2C_SCL2 33
 
-//TwoWire I2CSensors = TwoWire(0);
-Adafruit_BNO055 bno = Adafruit_BNO055(/*-1, BNO055_ADDRESS_A, &I2CSensors*/);
+
+TwoWire I2CSensors = TwoWire(0);
+TwoWire I2CSensors2 = TwoWire(1);
+Adafruit_BNO055 bno = Adafruit_BNO055(-1, BNO055_ADDRESS_A, &I2CSensors);
+Adafruit_BNO055 bno2 = Adafruit_BNO055(8, BNO055_ADDRESS_A, &I2CSensors2);
 
 imu::Vector<3>* accelerationQueue;
 imu::Vector<3>* gyroQueue;
@@ -74,23 +81,30 @@ void setup(){
   writeFile(SD, "/payload.txt", "Output file for payload systems:\n");
   writeFile(SD, "/data.txt", "Output file for data logging:\n");
   Serial.print("SD Card Initialized.\n");
-  //storeEvent("SD Card Initialized.");
-  //I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
+  appendFile(SD, "/payload.txt", "SD Card Initialized.\n");
+  I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
+  I2CSensors2.begin(I2C_SDA2, I2C_SCL2, 100000);
   Wire.begin();
+  appendFile(SD, "/payload.txt", "Initialized all three TwoWire objects.\n");
   if (!bno.begin()) {
     Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!\n");
     return;
   }
+  appendFile(SD, "/payload.txt", "BNO is initialized.\n");
+  if (!bno2.begin()) {
+    Serial.print("Ooops, no BNO055-2 detected ... Check your wiring or I2C ADDR!\n");
+    return;
+  }
+  appendFile(SD, "/payload.txt", "BNO2 is initialized.\n");
   delay(1000);
   bno.setExtCrystalUse(true);
   //Initalize Clock
-  if (! rtc.begin()) 
+  if (! rtc.begin(&I2CSensors)) 
   {
   Serial.println("Couldn't find RTC");
   } 
   rtc.adjust(DateTime(__DATE__, __TIME__));
-  
-
+  storeEvent("RTC Clock Initialized.");
   Serial.print("Setup done\n");
   getTime();
   storeEvent("Setup done");
@@ -142,17 +156,18 @@ void setup(){
   
 
 
-
-
   // After landing, deploy camera assembly horizontally
+  checkRoll();
+
+  storeEvent("Check Roll Finished.");
 
   imu::Quaternion q = bno.getQuat();
   float yy = q.y() * q.y();
   float roll = atan2(2 * (q.w() * q.x() + q.y() * q.z()), 1 - 2 * (q.x() * q.x() + yy));
   float initialXAngle = 57.2958 * roll;
+
   char buffer[64];
   int ret = snprintf(buffer, sizeof buffer, "%f", initialXAngle);
-
 
   Serial.print("Landed at ");
   Serial.print(initialXAngle);
@@ -162,6 +177,8 @@ void setup(){
   storeEvent(" degrees. Standby for horizontal motion.");
 
   delay(1000);
+
+
 
   //LeadScrewStepper.run();
   Serial.print("Done deploying Horizontally. Standby for camera orientation.\n");
@@ -288,6 +305,53 @@ bool checkLanding() {
   }
 }
 
+
+bool checkRoll() {
+  int countCheck = 0;
+  float currentRoll = 0;
+  float prevRoll = 0;
+  while (1) {
+    prevRoll = currentRoll;
+    imu::Quaternion q = bno.getQuat();
+    float yy = q.y() * q.y();
+    float roll = atan2(2 * (q.w() * q.x() + q.y() * q.z()), 1 - 2 * (q.x() * q.x() + yy));
+    float initialXAngle = 57.2958 * roll;
+    currentRoll = initialXAngle;
+
+    imu::Quaternion q2 = bno2.getQuat();
+    float yy2 = q2.y() * q2.y();
+    float roll2 = atan2(2 * (q2.w() * q2.x() + q2.y() * q2.z()), 1 - 2 * (q2.x() * q2.x() + yy2));
+    float initialX2Angle = 57.2958 * roll2;
+    storeData("roll", roll);
+    storeData("roll2", roll2);
+    storeData("currentRoll", currentRoll);
+    storeData("prevRoll", prevRoll);
+
+
+    // Within .5 degrees of the two BNO055 roll values
+    if ( roll2 - .5 < roll && roll < roll2 + .5) {
+      storeEvent("Both IMU have same data.(Within .5)");
+      // Within 10 degrees of the two roll values on the first BNO055
+      if (prevRoll - 10 < currentRoll && currentRoll < prevRoll + 10) {
+        storeEvent("prevRoll is whithin 10 degrees of currentRoll.");
+        return true;
+      }
+    }
+    else if (countCheck == 5){ // If a value can not come to a consesus within 5 polls, override the auxillary mechanism
+      storeEvent("Both IMU have different data.");
+      if (prevRoll - 10 < currentRoll && currentRoll < prevRoll + 10) {
+        storeEvent("prevRoll is whithin 10 degrees of currentRoll.");
+        return true;
+      }
+    }
+    else if (countCheck != 5){      
+
+      countCheck++;
+
+    }
+  delay(3000);
+  }
+}
 
 
 
