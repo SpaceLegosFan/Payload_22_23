@@ -78,8 +78,8 @@ void setup(){
     Serial.println("SD Initialization failed!");
     return;
   }
-  writeFile(SD, "/payload.txt", "Output file for payload systems:\n");
-  writeFile(SD, "/data.txt", "Output file for data logging:\n");
+  appendFile(SD, "/payload.txt", "\n\n\nOutp:ut file for payload systems:\n");
+  appendFile(SD, "/data.txt", "\n\n\nOutput file for data logging:\n");
   Serial.print("SD Card Initialized.\n");
   appendFile(SD, "/payload.txt", "SD Card Initialized.\n");
   I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
