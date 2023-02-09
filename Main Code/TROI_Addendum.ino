@@ -42,10 +42,12 @@ Reference Example: https://microcontrollerslab.com/stepper-motor-a4988-driver-mo
 #include "SD.h"
 #include "SPI.h"
 #include "RTClib.h"
+#define I2C_SDA 32
+#define I2C_SCL 33
 
-//TwoWire I2CSensors = TwoWire(0);
+TwoWire I2CSensors = TwoWire(0);
 Adafruit_BNO055 bno = Adafruit_BNO055(/*-1, BNO055_ADDRESS_A, &I2CSensors*/);
-Adafruit_BNO055 bno2 = Adafruit_BNO055(/*-1, BNO055_ADDRESS_A, &I2CSensors*/);
+Adafruit_BNO055 bno2 = Adafruit_BNO055(-1, BNO055_ADDRESS_A, &I2CSensors);
 
 imu::Vector<3>* accelerationQueue;
 imu::Vector<3>* gyroQueue;
@@ -76,10 +78,17 @@ void setup(){
   writeFile(SD, "/data.txt", "Output file for data logging:\n");
   Serial.print("SD Card Initialized.\n");
   //storeEvent("SD Card Initialized.");
-  //I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
+  I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
+  Serial.print("Here\n");
   Wire.begin();
+  Serial.print("now here\n");
   if (!bno.begin()) {
     Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!\n");
+    return;
+  }
+  Serial.print("HEre now\n");
+  if (!bno2.begin()) {
+    Serial.print("Ooops, no BNO055-2 detected ... Check your wiring or I2C ADDR!\n");
     return;
   }
   delay(1000);
@@ -143,23 +152,10 @@ void setup(){
   
 
 
-
-
   // After landing, deploy camera assembly horizontally
-  
-  
-  
+  checkRoll();
 
-
-  bool standbyReg = true; 
-  while(standbyReg == true && checkRoll() == false)
-  {
-    updateLanding();
-    standbyReg = !checkLanding;
-    if(standbyReg == false){
-      delay(TIME_BETWEEN_UPDATES);
-    }
-  }
+  storeEvent("Check Roll Finished.");
 
   imu::Quaternion q = bno.getQuat();
   float yy = q.y() * q.y();
@@ -307,60 +303,51 @@ bool checkLanding() {
 
 
 bool checkRoll() {
+  while (checkLanding() == true) {
+    int countCheck = 0;
+    float currentRoll = 0;
+    float prevRoll = 0;
+    currentRoll = prevRoll;
+    imu::Quaternion q = bno.getQuat();
+    float yy = q.y() * q.y();
+    float roll = atan2(2 * (q.w() * q.x() + q.y() * q.z()), 1 - 2 * (q.x() * q.x() + yy));
+    float initialXAngle = 57.2958 * roll;
+    currentRoll = initialXAngle;
 
-while (checkLanding() == true) {
-  int countCheck = 0;
-  float currentRoll = 0;
-  float prevRoll = 0;
-  currentRoll = prevRoll;
-  imu::Quaternion q = bno.getQuat();
-  float yy = q.y() * q.y();
-  float roll = atan2(2 * (q.w() * q.x() + q.y() * q.z()), 1 - 2 * (q.x() * q.x() + yy));
-  float initialXAngle = 57.2958 * roll;
-  currentRoll = initialXAngle;
-
-  imu::Quaternion q2 = bno2.getQuat();
-  float yy2 = q2.y() * q2.y();
-  float roll2 = atan2(2 * (q2.w() * q2.x() + q2.y() * q2.z()), 1 - 2 * (q2.x() * q2.x() + yy2));
-  float initialX2Angle = 57.2958 * roll2;
+    imu::Quaternion q2 = bno2.getQuat();
+    float yy2 = q2.y() * q2.y();
+    float roll2 = atan2(2 * (q2.w() * q2.x() + q2.y() * q2.z()), 1 - 2 * (q2.x() * q2.x() + yy2));
+    float initialX2Angle = 57.2958 * roll2;
+    storeData("roll", roll);
+    storeData("roll2", roll2);
+    storeData("currentRoll", currentRoll);
+    storeData("prevRoll", prevRoll);
 
 
-  // Within 20% of the two BNO055 roll values
+    // Within 20% of the two BNO055 roll values
 
-  if ( roll2 * 0.8 < roll && roll < roll2 * 1.2)
-    {
-        // Within 10% of the two roll values on the first BNO055
-
+    if ( roll2 * 0.8 < roll && roll < roll2 * 1.2) {
+      storeEvent("Both IMU have same data.");
+      // Within 10% of the two roll values on the first BNO055
       if (prevRoll * 0.9 < currentRoll && currentRoll < prevRoll * 1.1) {
-      return true;
+        storeEvent("prevRoll is whithin 10% of currentRoll.");
+        return true;
+      }
+    }
+    else if (countCheck == 5){ // If a value can not come to a consesus within 5 polls, override the auxillary mechanism
+      storeEvent("Both IMU have different data.");
+      if (prevRoll * 0.9 < currentRoll && currentRoll < prevRoll * 1.1) {
+        storeEvent("prevRoll is whithin 10% of currentRoll.");
+        return true;
+      }
+    }
+    else if (countCheck != 5){      
+
+      countCheck++;
 
     }
-
-    // If a value can not come to a consesus within 5 polls, override the auxillary mechanism
-
-  else if (countCheck == 5)
-
-  {
-      if (prevRoll * 0.9 < currentRoll && currentRoll < prevRoll * 1.1) {
-      return true;
-
+  delay(3000);
   }
-
-  else if (countCheck != 5)
-  
-  {
-
-    countCheck++;
-
-  }
-  }
-
-}
-
-delay(3000);
-
-}
-
 }
 
 
