@@ -18,22 +18,22 @@ Reference Example: https://microcontrollerslab.com/stepper-motor-a4988-driver-mo
 
 
 // Pins for pre-prototyping lead screw
-//B2 RED.  
-//A2 BLUE
-//A1 GREEN
-//B1 BLACK
-//
+// B2 RED.  
+// A2 BLUE
+// A1 GREEN
+// B1 BLACK
 
 // Pins for full-scale lead screw (color of the heat shrinks)
-//B2 YELLLOW
-//A2 WHITE
-//A1 BLUE
-//B1 RED
+// B2 YELLLOW
+// A2 WHITE
+// A1 BLUE
+// B1 RED
 
 
 
 //#include <AccelStepper.h>
 #include <Wire.h>
+#include <AccelStepper.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
@@ -42,12 +42,16 @@ Reference Example: https://microcontrollerslab.com/stepper-motor-a4988-driver-mo
 #include "SD.h"
 #include "SPI.h"
 #include "RTClib.h"
-#define I2C_SDA 32
-#define I2C_SCL 33
+#define I2C_SDA 21
+#define I2C_SCL 22
+#define I2C_SDA2 32
+#define I2C_SCL2 33
+#define motorInterfaceType 1
 
 TwoWire I2CSensors = TwoWire(0);
-Adafruit_BNO055 bno = Adafruit_BNO055(/*-1, BNO055_ADDRESS_A, &I2CSensors*/);
-Adafruit_BNO055 bno2 = Adafruit_BNO055(-1, BNO055_ADDRESS_A, &I2CSensors);
+TwoWire I2CSensors2 = TwoWire(1);
+Adafruit_BNO055 bno = Adafruit_BNO055(-1, BNO055_ADDRESS_A, &I2CSensors);
+Adafruit_BNO055 bno2 = Adafruit_BNO055(8, BNO055_ADDRESS_A, &I2CSensors2);
 
 imu::Vector<3>* accelerationQueue;
 imu::Vector<3>* gyroQueue;
@@ -57,12 +61,28 @@ const float GYRO_LAND_TOLERANCE = 5;
 const float ACCELERATION_LAUNCH_TOLERANCE = 20;
 const int TIME_BETWEEN_UPDATES = 100; // time in ms
 
+// Motor Values Defined
+
+const int leadDIR = 36;
+const int leadSTEP = 39;
+const int stepperDIR = 34;
+const int stepperSTEP = 35;
+
+AccelStepper LeadScrewStepper(motorInterfaceType, leadSTEP, leadDIR);
+
+// Motor Values
+int movementDirection; // 1 for moving up |||| -1 for moving down
+float travel_distance = 9.6; // 8.63; // Ask Spencer or https://drive.google.com/drive/u/0/folders/1Yd59MVs0kGjNgtfuYpVg5CDFZwnHGlRj.
+float num_steps = 400; // Steps per rotation; this would be if we are half-stepping (units: steps/revolution).
+float travel_distance_per_full_step = 0.00125; // Inches per step.
+float num_deployment_LeadScrew_steps = movementDirection * (travel_distance / travel_distance_per_full_step);
+
 // I2C RTC Clock Interface
 RTC_DS3231 rtc;
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
 
-void setup(){
+void setup() {
   size = 0;
   accelerationQueue = new imu::Vector<3>[10];
   gyroQueue = new imu::Vector<3>[10];
@@ -70,37 +90,48 @@ void setup(){
   //pinMode(SD_CS_PIN, OUTPUT); // SS
   //SPIClass spiSD = SPIClass(HSPI); // Neither HSPI nor VSPI seem to work
   //spiSD.begin(SD_CLK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_CS_PIN); 
+
+  // SD Card
+
   if (!SD.begin()) {
     Serial.println("SD Initialization failed!");
     return;
   }
-  writeFile(SD, "/payload.txt", "Output file for payload systems:\n");
-  writeFile(SD, "/data.txt", "Output file for data logging:\n");
+  appendFile(SD, "/payload.txt", "\n\n\nOutp:ut file for payload systems:\n");
+  appendFile(SD, "/data.txt", "\n\n\nOutput file for data logging:\n");
   Serial.print("SD Card Initialized.\n");
-  //storeEvent("SD Card Initialized.");
+  appendFile(SD, "/payload.txt", "SD Card Initialized.\n");
+
+  // I2C Sensors
+
   I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
-  Serial.print("Here\n");
+  I2CSensors2.begin(I2C_SDA2, I2C_SCL2, 100000);
+
+  // Wire
+
   Wire.begin();
-  Serial.print("now here\n");
+  appendFile(SD, "/payload.txt", "Initialized all three TwoWire objects.\n");
   if (!bno.begin()) {
     Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!\n");
     return;
   }
-  Serial.print("HEre now\n");
+  appendFile(SD, "/payload.txt", "BNO is initialized.\n");
   if (!bno2.begin()) {
     Serial.print("Ooops, no BNO055-2 detected ... Check your wiring or I2C ADDR!\n");
     return;
   }
+  appendFile(SD, "/payload.txt", "BNO2 is initialized.\n");
   delay(1000);
   bno.setExtCrystalUse(true);
-  //Initalize Clock
-  if (! rtc.begin()) 
+
+  // RTC Clock
+
+  if (! rtc.begin(&I2CSensors)) 
   {
   Serial.println("Couldn't find RTC");
   } 
   rtc.adjust(DateTime(__DATE__, __TIME__));
-  
-
+  storeEvent("RTC Clock Initialized.");
   Serial.print("Setup done\n");
   getTime();
   storeEvent("Setup done");
@@ -108,8 +139,31 @@ void setup(){
   Serial.print("Standing By for Launch\n");
   storeEvent("Standing By for Launch");
   getTime();
+
+  // Lead Screw Stepper (Primary) SetUp
+
+  Serial.println("Enter 1 to deploy lead screw cover or -1 to retract lead screw cover");
+  while (Serial.available() == 0) {
+  ;
+  }
+  movementDirection = Serial.parseInt();
+  Serial.println(movementDirection);
+
+  delay(1000);
   
-  
+  pinMode(leadSTEP, OUTPUT);
+  pinMode(leadDIR, OUTPUT);
+
+  LeadScrewStepper.setMaxSpeed(400); // 800
+  LeadScrewStepper.setAcceleration(1000);
+  LeadScrewStepper.setSpeed(500);
+
+  // "-" means going up, "+" means going down
+  // "-" (up) going to the left (clockwise), "+" (down) going the right (counterclockwise)
+
+  LeadScrewStepper.moveTo(num_deployment_LeadScrew_steps);
+
+  //LeadScrewStepper.runSpeedToPosition(); // Blocks until all are in position
  
 
 
@@ -176,11 +230,12 @@ void setup(){
 
 
 
-  //LeadScrewStepper.run();
+  LeadScrewRun();
+
   Serial.print("Done deploying Horizontally. Standby for camera orientation.\n");
   storeEvent("Done deploying Horizontally. Standby for camera orientation.");
 
-  //LeadScrewStepper.moveTo(-initialXAngle/1.8);
+  LeadScrewStepper.moveTo(-initialXAngle/1.8);
   delay(1000);
 
 
@@ -303,11 +358,11 @@ bool checkLanding() {
 
 
 bool checkRoll() {
-  while (checkLanding() == true) {
-    int countCheck = 0;
-    float currentRoll = 0;
-    float prevRoll = 0;
-    currentRoll = prevRoll;
+  int countCheck = 0;
+  float currentRoll = 0;
+  float prevRoll = 0;
+  while (1) {
+    prevRoll = currentRoll;
     imu::Quaternion q = bno.getQuat();
     float yy = q.y() * q.y();
     float roll = atan2(2 * (q.w() * q.x() + q.y() * q.z()), 1 - 2 * (q.x() * q.x() + yy));
@@ -324,20 +379,19 @@ bool checkRoll() {
     storeData("prevRoll", prevRoll);
 
 
-    // Within 20% of the two BNO055 roll values
-
-    if ( roll2 * 0.8 < roll && roll < roll2 * 1.2) {
-      storeEvent("Both IMU have same data.");
-      // Within 10% of the two roll values on the first BNO055
-      if (prevRoll * 0.9 < currentRoll && currentRoll < prevRoll * 1.1) {
-        storeEvent("prevRoll is whithin 10% of currentRoll.");
+    // Within .5 degrees of the two BNO055 roll values
+    if ( roll2 - .5 < roll && roll < roll2 + .5) {
+      storeEvent("Both IMU have same data.(Within .5)");
+      // Within 10 degrees of the two roll values on the first BNO055
+      if (prevRoll - 10 < currentRoll && currentRoll < prevRoll + 10) {
+        storeEvent("prevRoll is whithin 10 degrees of currentRoll.");
         return true;
       }
     }
     else if (countCheck == 5){ // If a value can not come to a consesus within 5 polls, override the auxillary mechanism
       storeEvent("Both IMU have different data.");
-      if (prevRoll * 0.9 < currentRoll && currentRoll < prevRoll * 1.1) {
-        storeEvent("prevRoll is whithin 10% of currentRoll.");
+      if (prevRoll - 10 < currentRoll && currentRoll < prevRoll + 10) {
+        storeEvent("prevRoll is whithin 10 degrees of currentRoll.");
         return true;
       }
     }
@@ -350,6 +404,17 @@ bool checkRoll() {
   }
 }
 
+void LeadScrewRun() {
+
+// Change direction once the motor reaches target position
+  //if (LeadScrewStepper.distanceToGo() == 0) 
+    //LeadScrewStepper.moveTo(-LeadScrewStepper.currentPosition());
+
+  // Move the motor one step
+  LeadScrewStepper.run();
+
+
+}
 
 
 void createDir(fs::FS &fs, const char * path){
