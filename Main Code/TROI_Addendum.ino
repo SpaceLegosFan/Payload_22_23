@@ -63,8 +63,8 @@ const int TIME_BETWEEN_UPDATES = 100; // time in ms
 
 // Motor Values Defined
 
-const int leadDIR = 36;
-const int leadSTEP = 39;
+const int leadDIR = 12;
+const int leadSTEP = 14;
 const int stepperDIR = 34;
 const int stepperSTEP = 35;
 
