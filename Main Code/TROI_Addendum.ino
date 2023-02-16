@@ -474,7 +474,7 @@ void getTime(){
   Serial.println(timeString);
 }
 
-void storeEvent(char* event){
+void storeEvent(const char* event){
   DateTime now = rtc.now();
   char bufferString[] = "DD MMM hh:mm:ss";
   char* timeString = now.toString(bufferString);
@@ -484,7 +484,7 @@ void storeEvent(char* event){
   appendFile(SD, "/payload.txt", "\n");
 }
 
-void storeData(char* type, float data){
+void storeData(const char* type, float data){
   DateTime now = rtc.now();
   char bufferString[] = "DD MMM hh:mm:ss";
   char* timeString = now.toString(bufferString);
