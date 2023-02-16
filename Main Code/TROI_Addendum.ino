@@ -48,6 +48,8 @@ Reference Example: https://microcontrollerslab.com/stepper-motor-a4988-driver-mo
 #define I2C_SCL2 33
 #define motorInterfaceType 1
 
+void appendFile(fs::FS &fs, const char * path, const char * message);
+
 TwoWire I2CSensors = TwoWire(0);
 TwoWire I2CSensors2 = TwoWire(1);
 Adafruit_BNO055 bno = Adafruit_BNO055(-1, BNO055_ADDRESS_A, &I2CSensors);
