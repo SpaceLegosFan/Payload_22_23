@@ -60,7 +60,7 @@ imu::Vector<3>* gyroQueue;
 int size;
 const float ACCELERATION_LAND_TOLERANCE = .3;
 const float GYRO_LAND_TOLERANCE = 5;
-const float ACCELERATION_LAUNCH_TOLERANCE = 20;
+const float ACCELERATION_LAUNCH_TOLERANCE = 30;
 const int TIME_BETWEEN_UPDATES = 100; // time in ms
 
 // Motor Values Defined
@@ -74,10 +74,9 @@ AccelStepper LeadScrewStepper(motorInterfaceType, leadSTEP, leadDIR);
 
 // Motor Values
 int movementDirection; // 1 for moving up |||| -1 for moving down
-float travel_distance = 9.6; // 8.63; // Ask Spencer or https://drive.google.com/drive/u/0/folders/1Yd59MVs0kGjNgtfuYpVg5CDFZwnHGlRj.
+float travel_distance = 8.6; // Ask Spencer or https://drive.google.com/drive/u/0/folders/1Yd59MVs0kGjNgtfuYpVg5CDFZwnHGlRj.
 float num_steps = 400; // Steps per rotation; this would be if we are half-stepping (units: steps/revolution).
 float travel_distance_per_full_step = 0.00125; // Inches per step.
-float num_deployment_LeadScrew_steps = travel_distance / travel_distance_per_full_step;
 
 // I2C RTC Clock Interface
 RTC_DS3231 rtc;
@@ -99,7 +98,7 @@ void setup() {
     Serial.println("SD Initialization failed!");
     return;
   }
-  appendFile(SD, "/payload.txt", "\n\n\nOutp:ut file for payload systems:\n");
+  appendFile(SD, "/payload.txt", "\n\n\nOutput file for payload systems:\n");
   appendFile(SD, "/data.txt", "\n\n\nOutput file for data logging:\n");
   Serial.print("SD Card Initialized.\n");
   appendFile(SD, "/payload.txt", "SD Card Initialized.\n");
@@ -141,21 +140,7 @@ void setup() {
   Serial.print("Standing By for Launch\n");
   storeEvent("Standing By for Launch");
   getTime();
-
-  // Lead Screw Stepper (Primary) SetUp
-
-  LeadScrewStepper.setMaxSpeed(400); // 800
-  LeadScrewStepper.setAcceleration(1000);
-  LeadScrewStepper.setSpeed(500);
-
-  // "-" means going up, "+" means going down
-  // "-" (up) going to the left (clockwise), "+" (down) going the right (counterclockwise)
-
-  LeadScrewStepper.moveTo(num_deployment_LeadScrew_steps);
-
-  //LeadScrewStepper.runSpeedToPosition(); // Blocks until all are in position
  
-
 
   bool standby = true;
   while (standby == true)
@@ -218,7 +203,18 @@ void setup() {
 
   delay(1000);
 
+  // Lead Screw Stepper (Primary) SetUp
 
+  LeadScrewStepper.setMaxSpeed(400); // 800
+  LeadScrewStepper.setAcceleration(1000);
+  LeadScrewStepper.setSpeed(500);
+
+  // "-" means going up, "+" means going down
+  // "-" (up) going to the left (clockwise), "+" (down) going the right (counterclockwise)
+  float num_deployment_LeadScrew_steps = travel_distance / travel_distance_per_full_step;
+  LeadScrewStepper.moveTo(-num_deployment_LeadScrew_steps);
+
+  //LeadScrewStepper.runSpeedToPosition(); // Blocks until all are in position
 
   LeadScrewRun();
 
@@ -401,8 +397,8 @@ void LeadScrewRun() {
     //LeadScrewStepper.moveTo(-LeadScrewStepper.currentPosition());
 
   // Move the motor one step
-  LeadScrewStepper.run();
-
+  while(LeadScrewStepper.run()){
+  }
 
 }
 
