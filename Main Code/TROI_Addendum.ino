@@ -77,7 +77,7 @@ int movementDirection; // 1 for moving up |||| -1 for moving down
 float travel_distance = 9.6; // 8.63; // Ask Spencer or https://drive.google.com/drive/u/0/folders/1Yd59MVs0kGjNgtfuYpVg5CDFZwnHGlRj.
 float num_steps = 400; // Steps per rotation; this would be if we are half-stepping (units: steps/revolution).
 float travel_distance_per_full_step = 0.00125; // Inches per step.
-float num_deployment_LeadScrew_steps = movementDirection * (travel_distance / travel_distance_per_full_step);
+float num_deployment_LeadScrew_steps = travel_distance / travel_distance_per_full_step;
 
 // I2C RTC Clock Interface
 RTC_DS3231 rtc;
@@ -143,18 +143,6 @@ void setup() {
   getTime();
 
   // Lead Screw Stepper (Primary) SetUp
-
-  Serial.println("Enter 1 to deploy lead screw cover or -1 to retract lead screw cover");
-  while (Serial.available() == 0) {
-  ;
-  }
-  movementDirection = Serial.parseInt();
-  Serial.println(movementDirection);
-
-  delay(1000);
-  
-  pinMode(leadSTEP, OUTPUT);
-  pinMode(leadDIR, OUTPUT);
 
   LeadScrewStepper.setMaxSpeed(400); // 800
   LeadScrewStepper.setAcceleration(1000);
