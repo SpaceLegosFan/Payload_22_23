@@ -169,7 +169,7 @@ void setup() {
   while(standby == true){
     updateLanding();
 
-    standby = !checkLanding;
+    standby = !checkLanding();
     if(standby == false){
       delay(TIME_BETWEEN_UPDATES);
     }
