@@ -1,4 +1,4 @@
-// ** DO NOT BUY THE WebSerialPro library - it is ridiculous you need to spend $40 for it, I managed to build it myself.
+// ** DO NOT BUY THE WebSerialPro library - it is ridiculous you need to spend $40 for it and it is likely a scam, I managed to build it myself.
 // ** I have found it and modified it, if you wish to upload this code, I will give you the library directly.
 // ** If you do not have access to the WebSerialPro library, simply change it to WebSerial library instead. Again, come to me if you want access WebSerialPro library.
 
