@@ -353,6 +353,7 @@ bool checkLanding(){
   gyroAverage /= size;
   storeData("accelerationAverage", accelerationAverage);
   storeData("gyroAverage", gyroAverage);
+  gyroAverage -= 9.8;
   if (accelerationAverage < ACCELERATION_LAND_TOLERANCE && gyroAverage < GYRO_LAND_TOLERANCE) {
     return true;
   } else {
