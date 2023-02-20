@@ -242,7 +242,9 @@ void recvMsg(uint8_t *data, size_t len){
     changeStepperDirection();
   else if(d.indexOf("radio string") != -1){
     String radioMessage = d.substring(d.indexOf("=") + 2);
+    WebSerialPro.print("The radio message is: ");
     WebSerialPro.println(radioMessage);
+    interpretRadioString(radioMessage);
   }
 }
 
@@ -394,7 +396,7 @@ void changeStepperDirection(){
 }
 
 void leadScrewRun() {
-  LeadScrewStepper.moveTo(num_deployment_LeadScrew_steps);
+  LeadScrewStepper.move(num_deployment_LeadScrew_steps);
   while(LeadScrewStepper.run()){}
 }
 
@@ -460,6 +462,7 @@ void storeData(const char* type, float data){
 }
 
 void interpretRadioString(String message){ // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3."
+  message.toUpperCase();
   message = message.substring(6);
   int numberCommands = message.length()/3;
   String commands[numberCommands];
@@ -471,9 +474,11 @@ void interpretRadioString(String message){ // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2
   for(int i = 0; i < numberCommands; i++){
     if(commands[i] == "A1"){
       CameraStepper.move(60.0/1.8);
+      while(CameraStepper.run()){}
     }
     else if(commands[i] == "B2"){
       CameraStepper.move(-60.0/1.8);
+      while(CameraStepper.run()){}
     }
     else if(commands[i] == "C3"){
       // Send command to take picture
@@ -494,7 +499,6 @@ void interpretRadioString(String message){ // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2
       // Send command to remove all filters
     }
     else{
-
     }
-  }  
+  }
 }
