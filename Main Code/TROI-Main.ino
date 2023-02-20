@@ -50,7 +50,6 @@ AccelStepper CameraStepper(motorInterfaceType, cameraSTEP, cameraDIR);
 float cameraAngle;
 
 // Motor Values
-int movementDirection; // 1 for moving up |||| -1 for moving down
 float travel_distance = 8.6; // Ask Spencer or https://drive.google.com/drive/u/0/folders/1Yd59MVs0kGjNgtfuYpVg5CDFZwnHGlRj.
 float num_steps = 400; // Steps per rotation; this would be if we are half-stepping (units: steps/revolution).
 float travel_distance_per_full_step = 0.00125; // Inches per step.
@@ -111,7 +110,6 @@ void setup() {
   WebSerialPro.msgCallback(recvMsg);
   server.begin();
   Serial.println("WiFi setup finished.");
-  storeEvent("WiFi setup finished.");
 
 
   // SD Card
@@ -125,41 +123,39 @@ void setup() {
   WebSerialPro.println("SD Card Initialized.");
   appendFile(SD, "/payload.txt", "SD Card Initialized.\n");
 
-  // I2C Sensors
-  I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
-  I2CSensors2.begin(I2C_SDA2, I2C_SCL2, 100000);
-  Wire.begin();
-
-
-  appendFile(SD, "/payload.txt", "Initialized all three TwoWire objects.\n");
-  if (!bno.begin()) {
-    Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!\n");
-    return;
-  }
-  appendFile(SD, "/payload.txt", "BNO is initialized.\n");
-  if (!bno2.begin()) {
-    Serial.print("Ooops, no BNO055-2 detected ... Check your wiring or I2C ADDR!\n");
-    return;
-  }
-  appendFile(SD, "/payload.txt", "BNO2 is initialized.\n");
-  bno.setExtCrystalUse(true);
-
   // RTC Clock
   if (! rtc.begin(&I2CSensors)) 
   {
   Serial.println("Couldn't find RTC");
   } 
   rtc.adjust(DateTime(__DATE__, __TIME__));
-  storeEvent("RTC Clock Initialized.");
-  WebSerialPro.println("RTC Clock Initalized.");
-  Serial.println("RTC Clock Initialized.");
+  printEvent("RTC Clock Initialized.");
+
+  // I2C Sensors
+  I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
+  I2CSensors2.begin(I2C_SDA2, I2C_SCL2, 100000);
+  Wire.begin();
+
+
+  printEvent("Initialized all three TwoWire objects.");
+  if (!bno.begin()) {
+    printEvent("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
+    return;
+  }
+  printEvent("BNO is initialized.\n");
+  if (!bno2.begin()) {
+    printEvent("Ooops, no BNO055-2 detected ... Check your wiring or I2C ADDR!");
+    return;
+  }
+  printEvent("BNO2 is initialized.\n");
+  bno.setExtCrystalUse(true);
+
+  
 
 
   // ESP-NOW setup
   if (esp_now_init() != ESP_OK) {
-    Serial.println("Error initializing ESP-NOW.");
-    WebSerialPro.println("Error initializing ESP-NOW.");
-    storeEvent("Error initializing ESP-NOW.");
+    printEvent("Error initializing ESP-NOW.");
     return;
   }
   esp_now_register_send_cb(OnDataSent);
@@ -168,14 +164,10 @@ void setup() {
   peerInfo.channel = 0;  
   peerInfo.encrypt = false;
   if (esp_now_add_peer(&peerInfo) != ESP_OK){
-    Serial.println("Failed to add peer.");
-    WebSerialPro.println("Failed to add peer.");
-    storeEvent("Failed to add peer.");
+    printEvent("Failed to add peer.");
     return;
   }
-  Serial.println("ESP-NOW setup finished.");
-  WebSerialPro.println("ESP-NOW setup finished.");
-  storeEvent("ESP-NOW setup finished.");
+  printEvent("ESP-NOW setup finished.");
 
   // Set stepper motor speeds/accelerations
   LeadScrewStepper.setMaxSpeed(400); // 800
@@ -185,16 +177,9 @@ void setup() {
   CameraStepper.setAcceleration(500);
   CameraStepper.setSpeed(200);
 
-  Serial.print("Setup done!\n");
-  WebSerialPro.println("Setup done!");
-  getTime();
-  storeEvent("Setup done!");
+  printEvent("Setup done!");
   delay(1000);
-  Serial.println("Standing By for Launch.");
-  WebSerialPro.println("Standing By for Launch.");
-  storeEvent("Standing By for Launch.");
-  getTime();
-
+  printEvent("Standing By for Launch.");
  
 
   bool standby = true;
@@ -206,10 +191,7 @@ void setup() {
       delay(100);
     }
   }
-  Serial.print("We Have Launched!\n");
-  WebSerialPro.println("We Have Launched!");
-  storeEvent("We Have Launched!");
-  getTime();
+  printEvent("We Have Launched!");
 
   // Wait a minimum of 60 seconds before standing by for landing. Record flight data during this.
   for(int i = 0; i = 10 * 60; i++){
@@ -219,11 +201,7 @@ void setup() {
 
 
   // wait in standby mode and loop until landed
-  Serial.print("Standing By for Landing\n");
-  WebSerialPro.println("Standing By for Landing!");
-  getTime();
-  storeEvent("Standing By for Landing");
-
+  printEvent("Standing By for Landing");
   standby=true;
   while(standby == true){
     updateLanding();
@@ -232,17 +210,12 @@ void setup() {
       delay(100);
     }
   }
-  Serial.print("We Have Landed!\n");
-  WebSerialPro.println("We Have Landed!");
-  storeEvent("We Have Landed!");
-  getTime();
+  printEvent("We Have Landed!");
   delay(1000);
 
   // After landing, check to make sure the payload tube is not rolling
   checkRoll();
-  Serial.print("Check Roll Finished.\n");
-  WebSerialPro.println("Check Roll Finished.");
-  storeEvent("Check Roll Finished.");
+  printEvent("Check Roll Finished.");
 
   // 
   imu::Quaternion q = bno.getQuat();
@@ -252,39 +225,25 @@ void setup() {
 
   char buffer[64];
   int ret = snprintf(buffer, sizeof buffer, "%f", initialXAngle);
-  Serial.print("Landed at ");
-  WebSerialPro.print("Landed at ");
-  Serial.print(initialXAngle);
-  WebSerialPro.print(initialXAngle);
-  Serial.print(" degrees. Standby for horizontal motion.\n");
-  WebSerialPro.print("degrees. Standby for horizontal motion.");
-  storeEvent("Landed at ");
-  storeEvent(buffer);
-  storeEvent(" degrees. Standby for horizontal motion.");
+  printEvent("Landed at ");
+  printEvent(buffer);
+  printEvent(" degrees. Standby for horizontal motion.");
 
   delay(1000);
 
   leadScrewRun();
 
-  Serial.println("Done deploying horizontally.");
-  WebSerialPro.println("Done deploying horizontally.");
-  storeEvent("Done deploying horizontally.");
-  delay(1000);
+  printEvent("Done deploying horizontally.");
+  delay(2000);
 
   // deploy vertically
-  Serial.println("Deploying vertically.");
-  WebSerialPro.println("Deploying vertically.");
-  storeEvent("Deploying vertically.");
+  printEvent("Deploying vertically.");
 
   spinCameraStepper(30);
 
-  Serial.println("Finished deploying vertically.");
-  WebSerialPro.println("Finished deploying vertically.");
-  storeEvent("Finished deploying vertically.");
+  printEvent("Finished deploying vertically.");
 
-  Serial.println("Standing By for Camera commands...");
-  WebSerialPro.println("Standing By for Camera commands...");
-  storeEvent("Standing By for Camera commands...");
+  printEvent("Standing By for Camera commands...");
 }
 
 
@@ -439,14 +398,10 @@ bool checkRoll() {
 
     // Within .5 radians of the two BNO055 roll values
     if ( roll2 - .5 < roll && roll < roll2 + .5) {
-      Serial.println("Both IMU have same data (within 0.5 radians).");
-      WebSerialPro.println("Both IMUs have same data (within 0.5 radians).");
-      storeEvent("Both IMUs have same data (within 0.5 radians).");
+      printEvent("Both IMUs have same data (within 0.5 radians).");
       // Within 10 degrees of the two roll values on the first BNO055
       if (prevRoll - 10 < currentRoll && currentRoll < prevRoll + 10) {
-        Serial.println("prevRoll is within 10 degrees of currentRoll.");
-        WebSerialPro.println("prevRoll is within 10 degrees of currentRoll.");
-        storeEvent("prevRoll is whithin 10 degrees of currentRoll.");
+        printEvent("prevRoll is whithin 10 degrees of currentRoll.");
         return true;
       }
     }
@@ -516,11 +471,14 @@ void deleteFile(fs::FS &fs, const char * path){
   }
 }
 
-void getTime(){
+void printTime(){
   DateTime now = rtc.now();
   char bufferString[] = "DD MMM hh:mm:ss";
   char* timeString = now.toString(bufferString);
-  Serial.println(timeString);
+  Serial.print(timeString);
+  Serial.print(" - ");
+  WebSerialPro.print(timeString);
+  WebSerialPro.print(" - ");
 }
 
 void storeEvent(const char* event){
@@ -545,6 +503,13 @@ void storeData(const char* type, float data){
   appendFile(SD, "/data.txt", "  -  ");
   appendFile(SD, "/data.txt", dataBuffer);
   appendFile(SD, "/data.txt", "\n");
+}
+
+void printEvent(const char* event){
+  printTime();  
+  Serial.println(event);
+  WebSerialPro.println(event);
+  storeEvent(event);
 }
 
 void interpretRadioString(String message){ // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3."
@@ -587,7 +552,7 @@ void interpretRadioString(String message){ // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2
   }
 }
 
-void sendData(int commandData){
+void sendData(int commandData) {
   // Set values to send
   strcpy(myData.timestamp, "TIMESTAMP");
 
@@ -598,11 +563,9 @@ void sendData(int commandData){
   esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
    
   if (result == ESP_OK) {
-    Serial.println("Sent with success");
+    printEvent("Sent with success");
   }
-
   else {
-    Serial.println("Error sending the data");
+    printEvent("Error sending the data");
   }
-
 }
