@@ -62,6 +62,8 @@ RTC_DS3231 rtc;
 AsyncWebServer server(80);
 const char* ssid = "\x48\x75\x6e\x74\x65\x72\xe2\x80\x99\x73\x20\x69\x50\x68\x6f\x6e\x65"; // Your WiFi SSID
 const char* password = "hunter123";  // WiFi Password
+const char* ssid_backup = "ND-guest";
+const char* password_backup = "";
 
 // ESP-NOW
 uint8_t broadcastAddress[] = {0xC8, 0xF0, 0x9E, 0x9A, 0x83, 0x68};
@@ -127,6 +129,13 @@ void setup() {
   delay(500);
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.printf("WiFi Failed!\n");
+    WiFi.begin(ssid_backup, password_backup);
+    delay(500);
+    if (WiFi.waitForConnectResult() != WL_CONNECTED) {
+      Serial.printf("WiFi backup failed!\n");
+    }
+    else
+      Serial.print("WiFi backup initialized");
   }
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
