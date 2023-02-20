@@ -535,11 +535,10 @@ void interpretRadioString(String message){ // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2
     switch(commands[i]){
       case 1:
         spinCameraStepper(60);
-        while(CameraStepper.run()){}
         break;
       case 2:
         spinCameraStepper(-60);
-        while(CameraStepper.run()){}
+        break;
       case 3:
         sendData(3);
         break;
