@@ -1,3 +1,5 @@
+#include "TROI-CAM.h"
+
 #ifndef TROICAM_h
 #define TROICAM_h
 
