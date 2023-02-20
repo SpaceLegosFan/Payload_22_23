@@ -60,9 +60,6 @@ RTC_DS3231 rtc;
 
 // WiFi
 AsyncWebServer server(80);
-
-// Connect to phone, only after having no WIFI for ND-guest.
-
 const char* ssid = "\x48\x75\x6e\x74\x65\x72\xe2\x80\x99\x73\x20\x69\x50\x68\x6f\x6e\x65"; // Your WiFi SSID
 const char* password = "hunter123";  // WiFi Password
 const char* ssid_backup = "ND-guest";
@@ -260,17 +257,17 @@ void recvMsg(uint8_t *data, size_t len){
   }
   WebSerialPro.println(d);
   d.toLowerCase();
-  if(d == "Run Motor")
+  if(d == "run motor")
     leadScrewRun();
-  else if(d == "Change Direction")
+  else if(d == "change direction")
     changeStepperDirection();
-  else if(d.indexOf("Radio String") != -1){
+  else if(d.indexOf("radio string") != -1){
     String radioMessage = d.substring(d.indexOf("=") + 2);
     WebSerialPro.print("The radio message is: ");
     WebSerialPro.println(radioMessage);
     interpretRadioString(radioMessage);
   }
-  else if(d.indexOf("Camera Turn") != -1){
+  else if(d.indexOf("camera turn") != -1){
     int angle = d.substring(d.indexOf("=") + 2).toInt();
     WebSerialPro.print("The camera motor will turn ");
     WebSerialPro.print(angle);
