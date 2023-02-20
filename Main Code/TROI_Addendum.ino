@@ -16,6 +16,8 @@ NDRT Payload 2022-2023
 #include <utility/imumaths.h>
 #include <ESPAsyncWebServer.h>
 #include <WebSerialPro.h>
+#include <esp_now.h>
+#include <WiFi.h>
 #include "FS.h"
 #include "SD.h"
 #include "RTClib.h"
@@ -60,6 +62,20 @@ RTC_DS3231 rtc;
 AsyncWebServer server(80);
 const char* ssid = "\x48\x75\x6e\x74\x65\x72\xe2\x80\x99\x73\x20\x69\x50\x68\x6f\x6e\x65"; // Your WiFi SSID
 const char* password = "hunter123";  // WiFi Password
+
+// ESP-NOW
+uint8_t broadcastAddress[] = {0xC8, 0xF0, 0x9E, 0x9A, 0x83, 0x68};
+typedef struct struct_message {
+  char timestamp[32];
+  int command;
+} struct_message;
+struct_message myData;
+esp_now_peer_info_t peerInfo;
+
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+  Serial.print("\r\nLast Packet Send Status:\t");
+  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+}
 
 
 void setup() {
@@ -119,6 +135,26 @@ void setup() {
   server.begin();
   Serial.println("WiFi setup finished.");
   storeEvent("WiFi setup finished.");
+
+  // ESP-NOW setup
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("Error initializing ESP-NOW");
+    storeEvent("Error initializing ESP-NOW");
+    return;
+  }
+  esp_now_register_send_cb(OnDataSent);
+  // Register peer
+  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+  peerInfo.channel = 0;  
+  peerInfo.encrypt = false;
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+    Serial.println("Failed to add peer");
+    storeEvent("Failed to add peer");
+    return;
+  }
+  Serial.println("ESP-NOW setup finished.");
+  storeEvent("ESP-NOW setup finished.");
+
 
 
   Serial.print("Setup done\n");
@@ -465,40 +501,59 @@ void interpretRadioString(String message){ // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2
   message.toUpperCase();
   message = message.substring(6);
   int numberCommands = message.length()/3;
-  String commands[numberCommands];
+  int commands[numberCommands];
   for(int i = 0; i < numberCommands; i++){
     message = message.substring(1);
-    commands[i] = message.substring(0,2);
+    commands[i] = message.substring(1,2).toInt();
     message = message.substring(2);
   }
   for(int i = 0; i < numberCommands; i++){
-    if(commands[i] == "A1"){
-      CameraStepper.move(60.0/1.8);
-      while(CameraStepper.run()){}
-    }
-    else if(commands[i] == "B2"){
-      CameraStepper.move(-60.0/1.8);
-      while(CameraStepper.run()){}
-    }
-    else if(commands[i] == "C3"){
-      // Send command to take picture
-    }
-    else if(commands[i] == "D4"){
-      // Send command to change camera mode from color to grayscale
-    }
-    else if(commands[i] == "E5"){
-      // Send command to change camera mode back from grayscale to color
-    }
-    else if(commands[i] == "F6"){
-      // Send command to rotate image 180º (upside down)
-    }
-    else if(commands[i] == "G7"){
-      // Send command to apply special effects filter(negative of image)
-    }
-    else if(commands[i] == "H8"){
-      // Send command to remove all filters
-    }
-    else{
+    switch(commands[i]){
+      case 1:
+        CameraStepper.move(60.0/1.8);
+        while(CameraStepper.run()){}
+        break;
+      case 2:
+        CameraStepper.move(-60.0/1.8);
+        while(CameraStepper.run()){}
+      case 3:
+        sendData(3);
+        break;
+      case 4:
+        sendData(4);
+        break;
+      case 5:
+        sendData(5);
+        break;
+      case 6:
+        sendData(6);
+        break;
+      case 7:
+        sendData(7);
+        break;
+      case 8:
+        sendData(8);
+        break;
     }
   }
+}
+
+void sendData(int commandData){
+  // Set values to send
+  strcpy(myData.timestamp, "TIMESTAMP");
+
+  // Dummy test; sends random "commands"
+  myData.command = commandData;
+
+  // Send message via ESP-NOW
+  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
+   
+  if (result == ESP_OK) {
+    Serial.println("Sent with success");
+  }
+
+  else {
+    Serial.println("Error sending the data");
+  }
+
 }
