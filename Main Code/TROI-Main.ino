@@ -61,12 +61,15 @@ RTC_DS3231 rtc;
 
 // WiFi
 AsyncWebServer server(80);
+
+// Connect to phone, only after having no WIFI for ND-guest.
+
 const char* ssid = "\x48\x75\x6e\x74\x65\x72\xe2\x80\x99\x73\x20\x69\x50\x68\x6f\x6e\x65"; // Your WiFi SSID
 const char* password = "hunter123";  // WiFi Password
 const char* ssid_backup = "ND-guest";
 const char* password_backup = "";
 
-// ESP-NOW
+// ESP-NOW - THIS NEEDS TO BE CHANGED, MAC ADDRESS NOT VALID
 uint8_t broadcastAddress[] = {0xC8, 0xF0, 0x9E, 0x9A, 0x83, 0x68};
 typedef struct struct_message {
   char timestamp[32];
@@ -88,6 +91,29 @@ void setup() {
   gyroQueue = new imu::Vector<3>[10];
   Serial.begin(115200);
 
+  // Wifi setup. Accessible at "<IP Address>/webserial" in browser
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+  delay(500);
+  if (WiFi.waitForConnectResult() != WL_CONNECTED) {
+    Serial.printf("WiFi Failed!\n");
+    WiFi.begin(ssid_backup, password_backup);
+    delay(500);
+    if (WiFi.waitForConnectResult() != WL_CONNECTED) {
+      Serial.printf("WiFi backup failed!\n");
+    }
+    else
+      Serial.print("WiFi backup initialized");
+  }
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
+  WebSerialPro.begin(&server);
+  WebSerialPro.msgCallback(recvMsg);
+  server.begin();
+  Serial.println("WiFi setup finished.");
+  storeEvent("WiFi setup finished.");
+
+
   // SD Card
   if (!SD.begin()) {
     Serial.println("SD Initialization failed!");
@@ -96,6 +122,7 @@ void setup() {
   appendFile(SD, "/payload.txt", "\n\n\nOutput file for payload systems:\n");
   appendFile(SD, "/data.txt", "\n\n\nOutput file for data logging:\n");
   Serial.print("SD Card Initialized.\n");
+  WebSerialPro.println("SD Card Initialized.");
   appendFile(SD, "/payload.txt", "SD Card Initialized.\n");
 
   // I2C Sensors
@@ -124,33 +151,15 @@ void setup() {
   } 
   rtc.adjust(DateTime(__DATE__, __TIME__));
   storeEvent("RTC Clock Initialized.");
+  WebSerialPro.println("RTC Clock Initalized.");
+  Serial.println("RTC Clock Initialized.");
 
-  // Wifi setup. Accessible at "<IP Address>/webserialPro" in browser
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-  delay(500);
-  if (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    Serial.printf("WiFi Failed!\n");
-    WiFi.begin(ssid_backup, password_backup);
-    delay(500);
-    if (WiFi.waitForConnectResult() != WL_CONNECTED) {
-      Serial.printf("WiFi backup failed!\n");
-    }
-    else
-      Serial.print("WiFi backup initialized");
-  }
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP());
-  WebSerialPro.begin(&server);
-  WebSerialPro.msgCallback(recvMsg);
-  server.begin();
-  Serial.println("WiFi setup finished.");
-  storeEvent("WiFi setup finished.");
 
   // ESP-NOW setup
   if (esp_now_init() != ESP_OK) {
-    Serial.println("Error initializing ESP-NOW");
-    storeEvent("Error initializing ESP-NOW");
+    Serial.println("Error initializing ESP-NOW.");
+    WebSerialPro.println("Error initializing ESP-NOW.");
+    storeEvent("Error initializing ESP-NOW.");
     return;
   }
   esp_now_register_send_cb(OnDataSent);
@@ -159,11 +168,13 @@ void setup() {
   peerInfo.channel = 0;  
   peerInfo.encrypt = false;
   if (esp_now_add_peer(&peerInfo) != ESP_OK){
-    Serial.println("Failed to add peer");
-    storeEvent("Failed to add peer");
+    Serial.println("Failed to add peer.");
+    WebSerialPro.println("Failed to add peer.");
+    storeEvent("Failed to add peer.");
     return;
   }
   Serial.println("ESP-NOW setup finished.");
+  WebSerialPro.println("ESP-NOW setup finished.");
   storeEvent("ESP-NOW setup finished.");
 
   // Set stepper motor speeds/accelerations
@@ -174,12 +185,14 @@ void setup() {
   CameraStepper.setAcceleration(500);
   CameraStepper.setSpeed(200);
 
-  Serial.print("Setup done\n");
+  Serial.print("Setup done!\n");
+  WebSerialPro.println("Setup done!");
   getTime();
-  storeEvent("Setup done");
+  storeEvent("Setup done!");
   delay(1000);
-  Serial.println("Standing By for Launch");
-  storeEvent("Standing By for Launch");
+  Serial.println("Standing By for Launch.");
+  WebSerialPro.println("Standing By for Launch.");
+  storeEvent("Standing By for Launch.");
   getTime();
 
  
@@ -194,6 +207,7 @@ void setup() {
     }
   }
   Serial.print("We Have Launched!\n");
+  WebSerialPro.println("We Have Launched!");
   storeEvent("We Have Launched!");
   getTime();
 
@@ -206,6 +220,7 @@ void setup() {
 
   // wait in standby mode and loop until landed
   Serial.print("Standing By for Landing\n");
+  WebSerialPro.println("Standing By for Landing!");
   getTime();
   storeEvent("Standing By for Landing");
 
@@ -218,12 +233,15 @@ void setup() {
     }
   }
   Serial.print("We Have Landed!\n");
+  WebSerialPro.println("We Have Landed!");
   storeEvent("We Have Landed!");
   getTime();
   delay(1000);
 
   // After landing, check to make sure the payload tube is not rolling
   checkRoll();
+  Serial.print("Check Roll Finished.\n");
+  WebSerialPro.println("Check Roll Finished.");
   storeEvent("Check Roll Finished.");
 
   // 
@@ -235,8 +253,11 @@ void setup() {
   char buffer[64];
   int ret = snprintf(buffer, sizeof buffer, "%f", initialXAngle);
   Serial.print("Landed at ");
+  WebSerialPro.print("Landed at ");
   Serial.print(initialXAngle);
+  WebSerialPro.print(initialXAngle);
   Serial.print(" degrees. Standby for horizontal motion.\n");
+  WebSerialPro.print("degrees. Standby for horizontal motion.");
   storeEvent("Landed at ");
   storeEvent(buffer);
   storeEvent(" degrees. Standby for horizontal motion.");
@@ -246,19 +267,23 @@ void setup() {
   leadScrewRun();
 
   Serial.println("Done deploying horizontally.");
+  WebSerialPro.println("Done deploying horizontally.");
   storeEvent("Done deploying horizontally.");
   delay(1000);
 
   // deploy vertically
   Serial.println("Deploying vertically.");
+  WebSerialPro.println("Deploying vertically.");
   storeEvent("Deploying vertically.");
 
   spinCameraStepper(30);
 
   Serial.println("Finished deploying vertically.");
+  WebSerialPro.println("Finished deploying vertically.");
   storeEvent("Finished deploying vertically.");
 
   Serial.println("Standing By for Camera commands...");
+  WebSerialPro.println("Standing By for Camera commands...");
   storeEvent("Standing By for Camera commands...");
 }
 
@@ -276,17 +301,17 @@ void recvMsg(uint8_t *data, size_t len){
   }
   WebSerialPro.println(d);
   d.toLowerCase();
-  if(d == "run motor")
+  if(d == "Run Motor")
     leadScrewRun();
-  else if(d == "change direction")
+  else if(d == "Change Direction")
     changeStepperDirection();
-  else if(d.indexOf("radio string") != -1){
+  else if(d.indexOf("Radio String") != -1){
     String radioMessage = d.substring(d.indexOf("=") + 2);
     WebSerialPro.print("The radio message is: ");
     WebSerialPro.println(radioMessage);
     interpretRadioString(radioMessage);
   }
-  else if(d.indexOf("camera turn") != -1){
+  else if(d.indexOf("Camera Turn") != -1){
     int angle = d.substring(d.indexOf("=") + 2).toInt();
     WebSerialPro.print("The camera motor will turn ");
     WebSerialPro.print(angle);
@@ -336,7 +361,7 @@ bool checkLaunch() {
 
 
 /*
-  Updates the acceleration and gyro vectors in their respective queues to be used by the checkLanding() function to check for landing
+  Updates the acceleration and gyro vectors in their respective queues to be used by the checkLanding() function to check for landing.
 */
 void updateLanding() {
   if (size >= 10) {
@@ -356,10 +381,7 @@ void updateLanding() {
 
 /* 
   Using the acceleration and gyro queues, calculates the average acceleration and gyroscopic motion for the last 10 points
-  If the acceleration and gyro averages are less than their respective landing tolerances, returns true saying the rocket has landed
-  
-  Question: Is this a calculation of linear acceleration or IMU acceleration, we may need to convert it (or does it matter all things being equal?)?
-  How do we determine between real linear acceleration and Coriolis linear acceleration? Does that matter due to bouncing issues?
+  If the acceleration and gyro averages are less than their respective landing tolerances, returns true saying the rocket has landed.
 */
 bool checkLanding(){
   float accelerationAverage = 0;
@@ -417,9 +439,13 @@ bool checkRoll() {
 
     // Within .5 radians of the two BNO055 roll values
     if ( roll2 - .5 < roll && roll < roll2 + .5) {
-      storeEvent("Both IMU have same data.(Within .5)");
+      Serial.println("Both IMU have same data (within 0.5 radians).");
+      WebSerialPro.println("Both IMUs have same data (within 0.5 radians).");
+      storeEvent("Both IMUs have same data (within 0.5 radians).");
       // Within 10 degrees of the two roll values on the first BNO055
       if (prevRoll - 10 < currentRoll && currentRoll < prevRoll + 10) {
+        Serial.println("prevRoll is within 10 degrees of currentRoll.");
+        WebSerialPro.println("prevRoll is within 10 degrees of currentRoll.");
         storeEvent("prevRoll is whithin 10 degrees of currentRoll.");
         return true;
       }
