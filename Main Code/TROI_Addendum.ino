@@ -26,8 +26,8 @@ NDRT Payload 2022-2023
 #define motorInterfaceType 1
 #define leadDIR 12
 #define leadSTEP 14
-#define stepperDIR 34
-#define stepperSTEP 35
+#define cameraDIR 34
+#define cameraSTEP 35
 #define ACCELERATION_LAND_TOLERANCE .3
 #define GYRO_LAND_TOLERANCE 5
 #define ACCELERATION_LAUNCH_TOLERANCE 30
@@ -44,6 +44,7 @@ imu::Vector<3>* gyroQueue;
 int size;
 
 AccelStepper LeadScrewStepper(motorInterfaceType, leadSTEP, leadDIR);
+AccelStepper CameraStepper(motorInterfaceType, cameraSTEP, cameraDIR);
 
 // Motor Values
 int movementDirection; // 1 for moving up |||| -1 for moving down
@@ -213,6 +214,10 @@ void setup() {
   Serial.println("Finished deploying vertically.");
   storeEvent("Finished deploying vertically.");
 
+  CameraStepper.setMaxSpeed(200);
+  CameraStepper.setAcceleration(500);
+  CameraStepper.setSpeed(200);
+
   Serial.println("Standing By for Camera commands...");
   storeEvent("Standing By for Camera commands...");
 }
@@ -233,8 +238,12 @@ void recvMsg(uint8_t *data, size_t len){
   d.toLowerCase();
   if(d == "run motor")
     leadScrewRun();
-  if(d == "change direction")
+  else if(d == "change direction")
     changeStepperDirection();
+  else if(d.indexOf("radio string") != -1){
+    String radioMessage = d.substring(d.indexOf("=") + 2);
+    WebSerialPro.println(radioMessage);
+  }
 }
 
 /*
@@ -448,4 +457,44 @@ void storeData(const char* type, float data){
   appendFile(SD, "/data.txt", "  -  ");
   appendFile(SD, "/data.txt", dataBuffer);
   appendFile(SD, "/data.txt", "\n");
+}
+
+void interpretRadioString(String message){ // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3."
+  message = message.substring(6);
+  int numberCommands = message.length()/3;
+  String commands[numberCommands];
+  for(int i = 0; i < numberCommands; i++){
+    message = message.substring(1);
+    commands[i] = message.substring(0,2);
+    message = message.substring(2);
+  }
+  for(int i = 0; i < numberCommands; i++){
+    if(commands[i] == "A1"){
+      CameraStepper.move(60.0/1.8);
+    }
+    else if(commands[i] == "B2"){
+      CameraStepper.move(-60.0/1.8);
+    }
+    else if(commands[i] == "C3"){
+      // Send command to take picture
+    }
+    else if(commands[i] == "D4"){
+      // Send command to change camera mode from color to grayscale
+    }
+    else if(commands[i] == "E5"){
+      // Send command to change camera mode back from grayscale to color
+    }
+    else if(commands[i] == "F6"){
+      // Send command to rotate image 180º (upside down)
+    }
+    else if(commands[i] == "G7"){
+      // Send command to apply special effects filter(negative of image)
+    }
+    else if(commands[i] == "H8"){
+      // Send command to remove all filters
+    }
+    else{
+
+    }
+  }  
 }
