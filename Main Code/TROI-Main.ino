@@ -112,7 +112,6 @@ void setup() {
   // SD Card
   if (!SD.begin()) {
     Serial.println("SD Initialization failed!");
-    return;
   }
   appendFile(SD, "/payload.txt", "\n\n\nOutput file for payload systems:\n");
   appendFile(SD, "/data.txt", "\n\n\nOutput file for data logging:\n");
@@ -121,11 +120,9 @@ void setup() {
   appendFile(SD, "/payload.txt", "SD Card Initialized.\n");
 
   // RTC Clock
-  if (! rtc.begin(&I2CSensors)) 
-  {
-  Serial.println("Couldn't find RTC");
-  } 
-  rtc.adjust(DateTime(__DATE__, __TIME__));
+  if (! rtc.begin(&I2CSensors)) {
+    Serial.println("Couldn't find RTC");
+  }
   printEvent("RTC Clock Initialized.");
 
   // I2C Sensors
@@ -147,7 +144,6 @@ void setup() {
   printEvent("BNO2 is initialized.\n");
   bno.setExtCrystalUse(true);
 
-  
 
 
   // ESP-NOW setup
@@ -175,13 +171,12 @@ void setup() {
   CameraStepper.setSpeed(200);
 
   printEvent("Setup done!");
-  delay(1000);
+  delay(500);
   printEvent("Standing By for Launch.");
  
 
   bool standby = true;
-  while (standby == true)
-  {
+  while (standby == true) {
     updateLaunch();
     standby = !checkLaunch();
     if (standby == false){
@@ -200,10 +195,10 @@ void setup() {
   // wait in standby mode and loop until landed
   printEvent("Standing By for Landing");
   standby=true;
-  while(standby == true){
+  while(standby == true) {
     updateLanding();
     standby = !checkLanding();
-    if(standby == false){
+    if(standby == false) {
       delay(100);
     }
   }
@@ -225,21 +220,17 @@ void setup() {
   printEvent("Landed at ");
   printEvent(buffer);
   printEvent(" degrees. Standby for horizontal motion.");
-
-  delay(1000);
+  delay(500);
 
   leadScrewRun();
-
   printEvent("Done deploying horizontally.");
   delay(2000);
 
   // deploy vertically
   printEvent("Deploying vertically.");
-
   spinCameraStepper(30);
 
   printEvent("Finished deploying vertically.");
-
   printEvent("Standing By for Camera commands...");
 }
 
@@ -291,13 +282,9 @@ void updateLaunch() {
 }
 
 
-
-
 /* 
   Using the acceleration queue, calculates the average acceleration for the last 10 points
   If the acceleration average is greater than the launch acceleration tolerance, returns true saying the rocket has launched
-
-Question: Why do we need to know when the rocket has launched?
 */
 bool checkLaunch() {
   float a_avg = 0;
