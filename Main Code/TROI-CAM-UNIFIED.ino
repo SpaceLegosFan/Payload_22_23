@@ -40,6 +40,13 @@
 #define HREF_GPIO_NUM     23
 #define PCLK_GPIO_NUM     22
 
+// WiFi
+AsyncWebServer server(80);
+const char* ssid = "\x48\x75\x6e\x74\x65\x72\xe2\x80\x99\x73\x20\x69\x50\x68\x6f\x6e\x65"; // Your WiFi SSID
+const char* password = "hunter123";  // WiFi Password
+const char* ssid_backup = "ND-guest";
+const char* password_backup = "";
+
 // Keep track of number of pictures
 unsigned int pictureNumber = 0;
 
@@ -62,10 +69,8 @@ uint8_t broadcastAddress[] = {0xC0, 0x49, 0xEF, 0x31, 0x03, 0x34};
 //  Must match the sender structure
 
 typedef struct struct_message {
-
     char timestamp[32];
     int command;
-
 } struct_message;
 
 // Create a struct_message called myData
@@ -79,33 +84,25 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 
   // Switch decides which function to execute
   switch(myData.command){
-
     case 3:
       take_picture();
       break;
-
     case 4:
       color_2_gray();
       break;
-
     case 5:
       gray_2_color();
       break;
-
     case 6:
       rotate_180();
       break;
-
     case 7:
       spec_filt();
       break;
-
     case 8:
       remove_filt();
       break;
-
   }
-
 }
  
 void setup() {
@@ -127,7 +124,7 @@ void setup() {
 
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
 
-    // Initialize the camera  
+  // Initialize the camera  
   Serial.print("Initializing the camera module...");
   DefCamSettings(config, s);
   Serial.println("Ok!");
@@ -147,11 +144,45 @@ void setup() {
 
   // Delete initialization photos
   deleteFile(SD_MMC, "/null.jpg");
-
 }
  
 void loop() {
 
+}
+
+void recvMsg(uint8_t *data, size_t len){
+  WebSerialPro.println("Received Data...");
+  String d = "";
+  for(int i=0; i < len; i++){
+    d += char(data[i]);
+  }
+  WebSerialPro.println(d);
+  d.toLowerCase();
+  if(d.indexOf("camera command = ") != -1){
+    int radioCommand = d.substring(d.indexOf("=") + 2).toInt();
+    WebSerialPro.print("The radio command is: ");
+    WebSerialPro.println(radioCommand);
+    switch(radioCommand){
+    case 3:
+      take_picture();
+      break;
+    case 4:
+      color_2_gray();
+      break;
+    case 5:
+      gray_2_color();
+      break;
+    case 6:
+      rotate_180();
+      break;
+    case 7:
+      spec_filt();
+      break;
+    case 8:
+      remove_filt();
+      break;
+    }
+  }
 }
 
 void take_picture(){
