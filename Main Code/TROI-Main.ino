@@ -553,8 +553,13 @@ void interpretRadioString(String message){ // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2
 }
 
 void sendData(int commandData) {
+  // Get Timestamp
+  DateTime now = rtc.now();
+  char bufferString[] = "DD MMM hh:mm:ss";
+  char* timeString = now.toString(bufferString);
+
   // Set values to send
-  strcpy(myData.timestamp, "TIMESTAMP");
+  strcpy(myData.timestamp, timeString);
 
   // Dummy test; sends random "commands"
   myData.command = commandData;
