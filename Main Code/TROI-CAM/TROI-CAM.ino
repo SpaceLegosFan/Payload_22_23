@@ -1,4 +1,4 @@
-#include "TROI-CAM.h"
+#include "TROI-CAM-EX.h"
 
 #ifndef TROICAM_h
 #define TROICAM_h
