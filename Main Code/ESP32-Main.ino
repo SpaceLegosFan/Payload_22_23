@@ -47,6 +47,7 @@ int size;
 
 AccelStepper LeadScrewStepper(motorInterfaceType, leadSTEP, leadDIR);
 AccelStepper CameraStepper(motorInterfaceType, cameraSTEP, cameraDIR);
+float cameraAngle;
 
 // Motor Values
 int movementDirection; // 1 for moving up |||| -1 for moving down
@@ -82,6 +83,7 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 
 void setup() {
   size = 0;
+  cameraAngle = 0.0;
   accelerationQueue = new imu::Vector<3>[10];
   gyroQueue = new imu::Vector<3>[10];
   Serial.begin(115200);
@@ -164,7 +166,13 @@ void setup() {
   Serial.println("ESP-NOW setup finished.");
   storeEvent("ESP-NOW setup finished.");
 
-
+  // Set stepper motor speeds/accelerations
+  LeadScrewStepper.setMaxSpeed(400); // 800
+  LeadScrewStepper.setAcceleration(1000);
+  LeadScrewStepper.setSpeed(400);
+  CameraStepper.setMaxSpeed(200);
+  CameraStepper.setAcceleration(500);
+  CameraStepper.setSpeed(200);
 
   Serial.print("Setup done\n");
   getTime();
@@ -235,33 +243,20 @@ void setup() {
 
   delay(1000);
 
-  // Lead Screw Stepper (Primary) SetUp
-  LeadScrewStepper.setMaxSpeed(400); // 800
-  LeadScrewStepper.setAcceleration(1000);
-  LeadScrewStepper.setSpeed(400);
-
-
   leadScrewRun();
 
   Serial.println("Done deploying horizontally.");
   storeEvent("Done deploying horizontally.");
   delay(1000);
 
-
   // deploy vertically
   Serial.println("Deploying vertically.");
   storeEvent("Deploying vertically.");
-  /*
 
-    Code to deploy vertically goes here
+  spinCameraStepper(30);
 
-  */
   Serial.println("Finished deploying vertically.");
   storeEvent("Finished deploying vertically.");
-
-  CameraStepper.setMaxSpeed(200);
-  CameraStepper.setAcceleration(500);
-  CameraStepper.setSpeed(200);
 
   Serial.println("Standing By for Camera commands...");
   storeEvent("Standing By for Camera commands...");
@@ -290,6 +285,13 @@ void recvMsg(uint8_t *data, size_t len){
     WebSerialPro.print("The radio message is: ");
     WebSerialPro.println(radioMessage);
     interpretRadioString(radioMessage);
+  }
+  else if(d.indexOf("camera turn") != -1){
+    int angle = d.substring(d.indexOf("=") + 2).toInt();
+    WebSerialPro.print("The camera motor will turn ");
+    WebSerialPro.print(angle);
+    WebSerialPro.println(" degrees.");
+    spinCameraStepper(angle);
   }
 }
 
@@ -445,6 +447,19 @@ void leadScrewRun() {
   while(LeadScrewStepper.run()){}
 }
 
+void spinCameraStepper(int angle){
+  if(cameraAngle + angle > 180){
+    angle = 360 - angle;
+  }
+  else if(cameraAngle + angle < -180){
+    angle = angle + 360;
+  }
+  int steps = angle/1.8;
+  cameraAngle += steps*1.8;
+  CameraStepper.move(steps);
+  while(CameraStepper.run()){}
+}
+
 void writeFile(fs::FS &fs, const char * path, const char * message){
   File file = fs.open(path, FILE_WRITE);
   if(!file){
@@ -519,11 +534,11 @@ void interpretRadioString(String message){ // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2
   for(int i = 0; i < numberCommands; i++){
     switch(commands[i]){
       case 1:
-        CameraStepper.move(60.0/1.8);
+        spinCameraStepper(60);
         while(CameraStepper.run()){}
         break;
       case 2:
-        CameraStepper.move(-60.0/1.8);
+        spinCameraStepper(-60);
         while(CameraStepper.run()){}
       case 3:
         sendData(3);
