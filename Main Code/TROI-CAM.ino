@@ -112,6 +112,26 @@ void setup() {
   // Set device as a Wi-Fi Station
   WiFi.mode(WIFI_STA);
 
+  // Initalize WiFi for WebSerialPro. Accessible at "<IP Address>/webserial" in browser
+  WiFi.begin(ssid, password);
+  delay(500);
+  if (WiFi.waitForConnectResult() != WL_CONNECTED) {
+    Serial.printf("WiFi Failed!\n");
+    WiFi.begin(ssid_backup, password_backup);
+    delay(500);
+    if (WiFi.waitForConnectResult() != WL_CONNECTED) {
+      Serial.printf("WiFi backup failed!\n");
+    }
+    else
+      Serial.print("WiFi backup initialized");
+  }
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
+  WebSerialPro.begin(&server);
+  WebSerialPro.msgCallback(recvMsg);
+  server.begin();
+  Serial.println("WiFi setup finished.");
+
   // Initalize ESP-NOW
   if (esp_now_init() != ESP_OK) {
     Serial.println("Error initializing ESP-NOW");
