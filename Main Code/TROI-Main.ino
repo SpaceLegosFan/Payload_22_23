@@ -156,7 +156,7 @@ void setup() {
   memcpy(peerInfo.peer_addr, broadcastAddress, 6);
   peerInfo.channel = 0;  
   peerInfo.encrypt = false;
-  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+  if (esp_now_add_peer(&peerInfo) != ESP_OK) {
     printEvent("Failed to add peer.");
     return;
   }
@@ -179,14 +179,14 @@ void setup() {
   while (standby == true) {
     updateLaunch();
     standby = !checkLaunch();
-    if (standby == false){
+    if (standby == false) {
       delay(100);
     }
   }
   printEvent("We Have Launched!");
 
   // Wait a minimum of 60 seconds before standing by for landing. Record flight data during this.
-  for(int i = 0; i = 10 * 60; i++){
+  for(int i = 0; i = 10 * 60; i++) {
     recordFlightData();
     delay(100);
   }
@@ -240,10 +240,10 @@ void loop() {
 }
 
 
-void recvMsg(uint8_t *data, size_t len){
+void recvMsg(uint8_t *data, size_t len) {
   WebSerialPro.println("Received Data...");
   String d = "";
-  for(int i=0; i < len; i++){
+  for(int i=0; i < len; i++) {
     d += char(data[i]);
   }
   WebSerialPro.println(d);
@@ -252,13 +252,13 @@ void recvMsg(uint8_t *data, size_t len){
     leadScrewRun();
   else if(d == "change direction")
     changeStepperDirection();
-  else if(d.indexOf("radio string") != -1){
+  else if(d.indexOf("radio string") != -1) {
     String radioMessage = d.substring(d.indexOf("=") + 2);
     WebSerialPro.print("The radio message is: ");
     WebSerialPro.println(radioMessage);
     interpretRadioString(radioMessage);
   }
-  else if(d.indexOf("camera turn") != -1){
+  else if(d.indexOf("camera turn") != -1) {
     int angle = d.substring(d.indexOf("=") + 2).toInt();
     WebSerialPro.print("The camera motor will turn ");
     WebSerialPro.print(angle);
@@ -326,7 +326,7 @@ void updateLanding() {
   Using the acceleration and gyro queues, calculates the average acceleration and gyroscopic motion for the last 10 points
   If the acceleration and gyro averages are less than their respective landing tolerances, returns true saying the rocket has landed.
 */
-bool checkLanding(){
+bool checkLanding() {
   float accelerationAverage = 0;
   float gyroAverage = 0;
   for (int i = 0; i < size; i++) {
@@ -345,7 +345,7 @@ bool checkLanding(){
   }
 }
 
-void recordFlightData(){
+void recordFlightData() {
   updateLanding();
   float accelerationAverage = 0;
   float gyroAverage = 0;
@@ -390,73 +390,73 @@ bool checkRoll() {
         return true;
       }
     }
-    else if (countCheck == 5){ // If a value can not come to a consesus within 5 polls, override the auxillary mechanism
+    else if (countCheck == 5) { // If a value can not come to a consesus within 5 polls, override the auxillary mechanism
       storeEvent("Both IMU have different data.");
       if (prevRoll - 10 < currentRoll && currentRoll < prevRoll + 10) {
         storeEvent("prevRoll is whithin 10 degrees of currentRoll.");
         return true;
       }
     }
-    else if (countCheck != 5){      
+    else if (countCheck != 5) {      
       countCheck++;
     }
   delay(3000);
   }
 }
 
-void changeStepperDirection(){
+void changeStepperDirection() {
   num_deployment_LeadScrew_steps *= -1;
 }
 
 void leadScrewRun() {
   LeadScrewStepper.move(num_deployment_LeadScrew_steps);
-  while(LeadScrewStepper.run()){}
+  while(LeadScrewStepper.run()) {}
 }
 
-void spinCameraStepper(int angle){
-  if(cameraAngle + angle > 180){
+void spinCameraStepper(int angle) {
+  if(cameraAngle + angle > 180) {
     angle = 360 - angle;
   }
-  else if(cameraAngle + angle < -180){
+  else if(cameraAngle + angle < -180) {
     angle = angle + 360;
   }
   int steps = angle/1.8;
   cameraAngle += steps*1.8;
   CameraStepper.move(steps);
-  while(CameraStepper.run()){}
+  while(CameraStepper.run()) {}
 }
 
-void writeFile(fs::FS &fs, const char * path, const char * message){
+void writeFile(fs::FS &fs, const char * path, const char * message) {
   File file = fs.open(path, FILE_WRITE);
-  if(!file){
+  if(!file) {
   Serial.println("Failed to open file for writing");
   return;
   }
-if(!file.print(message)){
+if(!file.print(message)) {
     Serial.println("Write failed");
   }
   file.close();
 }
 
-void appendFile(fs::FS &fs, const char * path, const char * message){
+void appendFile(fs::FS &fs, const char * path, const char * message) {
   File file = fs.open(path, FILE_APPEND);
-  if(!file){
+  if(!file) {
     Serial.println("Failed to open file for appending");
     return;
   }
-  if(!file.print(message)){
+  if(!file.print(message)) {
     Serial.println("Append failed");
   }
   file.close();
 }
 
-void deleteFile(fs::FS &fs, const char * path){
-  if(!fs.remove(path)){
+void deleteFile(fs::FS &fs, const char * path) {
+  if(!fs.remove(path)) {
     Serial.println("Delete failed");
   }
 }
 
-void printTime(){
+void printTime() {
   DateTime now = rtc.now();
   char bufferString[] = "DD MMM hh:mm:ss";
   char* timeString = now.toString(bufferString);
@@ -466,7 +466,7 @@ void printTime(){
   WebSerialPro.print(" - ");
 }
 
-void storeEvent(const char* event){
+void storeEvent(const char* event) {
   DateTime now = rtc.now();
   char bufferString[] = "DD MMM hh:mm:ss";
   char* timeString = now.toString(bufferString);
@@ -476,7 +476,7 @@ void storeEvent(const char* event){
   appendFile(SD, "/payload.txt", "\n");
 }
 
-void storeData(const char* type, float data){
+void storeData(const char* type, float data) {
   DateTime now = rtc.now();
   char bufferString[] = "DD MMM hh:mm:ss";
   char* timeString = now.toString(bufferString);
@@ -490,25 +490,25 @@ void storeData(const char* type, float data){
   appendFile(SD, "/data.txt", "\n");
 }
 
-void printEvent(const char* event){
+void printEvent(const char* event) {
   printTime();  
   Serial.println(event);
   WebSerialPro.println(event);
   storeEvent(event);
 }
 
-void interpretRadioString(String message){ // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3."
+void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3."
   message.toUpperCase();
   message = message.substring(6);
   int numberCommands = message.length()/3;
   int commands[numberCommands];
-  for(int i = 0; i < numberCommands; i++){
+  for(int i = 0; i < numberCommands; i++) {
     message = message.substring(1);
     commands[i] = message.substring(1,2).toInt();
     message = message.substring(2);
   }
-  for(int i = 0; i < numberCommands; i++){
-    switch(commands[i]){
+  for(int i = 0; i < numberCommands; i++) {
+    switch(commands[i]) {
       case 1:
         spinCameraStepper(60);
         break;
