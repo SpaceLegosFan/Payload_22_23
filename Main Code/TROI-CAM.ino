@@ -6,7 +6,6 @@
   ***NOTE***
 
   Receives two data points (timestamp and command #) and passes those to a switch statement.
-  Edit commands in the corresponding ESP32-CAM.cpp file
   
 
 *****/
