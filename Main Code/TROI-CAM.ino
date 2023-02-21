@@ -424,3 +424,8 @@ void remove_filt(sensor_t * s){
   Serial.println("All filters off.");
   
 }
+
+void printEvent(const char* event){
+  Serial.println(event);
+  WebSerialPro.println(event);
+}
