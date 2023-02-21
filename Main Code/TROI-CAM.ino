@@ -67,7 +67,6 @@ uint8_t broadcastAddress[] = {0xC0, 0x49, 0xEF, 0x31, 0x03, 0x34};
 
 //  Structure example to send data
 //  Must match the sender structure
-
 typedef struct struct_message {
     char timestamp[32];
     int command;
@@ -152,28 +151,28 @@ void setup() {
   // Initialize MicroSD
   Serial.print("Initializing the MicroSD card module... ");
   initMicroSDCard();
+  Serial.println("Ok!");
 
   // Take three junk pictures, for some reason this affects the image quality
+  Serial.println("Taking junk photos...");
   String initial_path_junk = "/null.jpg";
   takeSavePhoto(initial_path_junk);
-  Serial.println("Ok!");
-  
   takeSavePhoto(initial_path_junk);
-  
   takeSavePhoto(initial_path_junk);
 
   // Delete initialization photos
   deleteFile(SD_MMC, "/null.jpg");
+  Serial.println("Ok!");
 }
  
 void loop() {
 
 }
 
-void recvMsg(uint8_t *data, size_t len){
+void recvMsg(uint8_t *data, size_t len) {
   WebSerialPro.println("Received Data...");
   String d = "";
-  for(int i=0; i < len; i++){
+  for(int i=0; i < len; i++) {
     d += char(data[i]);
   }
   WebSerialPro.println(d);
@@ -205,41 +204,33 @@ void recvMsg(uint8_t *data, size_t len){
   }
 }
 
-void take_picture(){
-
+void take_picture() {
   Serial.println("Take picture.");
   Serial.println();
   String pic1 = "/normal1.jpg";
   takeSavePhoto(pic1);
   Serial.println("Ok!");
-
 }
 
-void color_2_gray(){
-
+void color_2_gray() {
   Serial.println("Color to grayscale");
   Serial.println();
   String pic2 = "/grayscale.jpg";
   color_2_gray(s);
   takeSavePhoto(pic2);
   Serial.println("Ok!");
-
 }
 
-void gray_2_color(){
-
+void gray_2_color() {
   Serial.println("Grayscale to color");
   Serial.println();
   String pic7 = "/grayscaletocolor.jpg";
   gray_2_color(s);
   takeSavePhoto(pic7);
   Serial.println("Ok!");
-
-
 }
 
 void rotate_180(){
-
   Serial.println("Rotate image 180");
   Serial.println();
   String pic3 = "/flipped.jpg";
@@ -247,11 +238,9 @@ void rotate_180(){
   rotate_180(s, flip_set);
   takeSavePhoto(pic3);
   Serial.println("Ok!");
-
 }
 
 void spec_filt(){
-
   Serial.println("Special effects filter");
   Serial.println();
   String pic4 = "/negative.jpg";
@@ -259,22 +248,17 @@ void spec_filt(){
   spec_filt(s);
   takeSavePhoto(pic4);
   Serial.println("Ok!");
-
 }
 
 void remove_filt(){
-
   Serial.println("Remove all filters");
   Serial.println();
   String pic5 = "/normal2.jpg";
   remove_filt(s);
   takeSavePhoto(pic5);
   Serial.println("Ok!");  
-
-
   String pic6 = "/normal3.jpg";
   takeSavePhoto(pic6);
-
 }
 
 void DefCamSettings(camera_config_t config, sensor_t * s){
