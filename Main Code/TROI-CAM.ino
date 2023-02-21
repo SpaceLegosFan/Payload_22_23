@@ -80,6 +80,7 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   memcpy(&myData, incomingData, sizeof(myData));
 
   Serial.println(myData.command);
+  WebSerialPro.println(myData.command);
 
   // Switch decides which function to execute
   switch(myData.command){
@@ -133,7 +134,7 @@ void setup() {
 
   // Initalize ESP-NOW
   if (esp_now_init() != ESP_OK) {
-    Serial.println("Error initializing ESP-NOW");
+    printEvent("Error initializing ESP-NOW");
     return;
   }
   
@@ -144,17 +145,17 @@ void setup() {
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
 
   // Initialize the camera  
-  Serial.print("Initializing the camera module...");
+  printEvent("Initializing the camera module...");
   DefCamSettings(config, s);
-  Serial.println("Ok!");
+  printEvent("Ok!");
  
   // Initialize MicroSD
-  Serial.print("Initializing the MicroSD card module... ");
+  printEvent("Initializing the MicroSD card module... ");
   initMicroSDCard();
-  Serial.println("Ok!");
+  printEvent("Ok!");
 
   // Take three junk pictures, for some reason this affects the image quality
-  Serial.println("Taking junk photos...");
+  printEvent("Taking junk photos...");
   String initial_path_junk = "/null.jpg";
   takeSavePhoto(initial_path_junk);
   takeSavePhoto(initial_path_junk);
@@ -162,7 +163,7 @@ void setup() {
 
   // Delete initialization photos
   deleteFile(SD_MMC, "/null.jpg");
-  Serial.println("Ok!");
+  printEvent("Ok!");
 }
  
 void loop() {
@@ -205,58 +206,52 @@ void recvMsg(uint8_t *data, size_t len) {
 }
 
 void take_picture() {
-  Serial.println("Take picture.");
-  Serial.println();
+  printEvent("Take picture.");
   String pic1 = "/normal1.jpg";
   takeSavePhoto(pic1);
-  Serial.println("Ok!");
+  printEvent("Ok!");
 }
 
 void color_2_gray() {
-  Serial.println("Color to grayscale");
-  Serial.println();
+  printEvent("Color to grayscale");
   String pic2 = "/grayscale.jpg";
   color_2_gray(s);
   takeSavePhoto(pic2);
-  Serial.println("Ok!");
+  printEvent("Ok!");
 }
 
 void gray_2_color() {
-  Serial.println("Grayscale to color");
-  Serial.println();
+  printEvent("Grayscale to color");
   String pic7 = "/grayscaletocolor.jpg";
   gray_2_color(s);
   takeSavePhoto(pic7);
-  Serial.println("Ok!");
+  printEvent("Ok!");
 }
 
 void rotate_180(){
-  Serial.println("Rotate image 180");
-  Serial.println();
+  printEvent("Rotate image 180");
   String pic3 = "/flipped.jpg";
   gray_2_color(s);
   rotate_180(s, flip_set);
   takeSavePhoto(pic3);
-  Serial.println("Ok!");
+  printEvent("Ok!");
 }
 
 void spec_filt(){
-  Serial.println("Special effects filter");
-  Serial.println();
+  printEvent("Special effects filter");
   String pic4 = "/negative.jpg";
   rotate_180(s, flip_set);
   spec_filt(s);
   takeSavePhoto(pic4);
-  Serial.println("Ok!");
+  printEvent("Ok!");
 }
 
 void remove_filt(){
-  Serial.println("Remove all filters");
-  Serial.println();
+  printEvent("Remove all filters");
   String pic5 = "/normal2.jpg";
   remove_filt(s);
   takeSavePhoto(pic5);
-  Serial.println("Ok!");  
+  printEvent("Ok!");  
   String pic6 = "/normal3.jpg";
   takeSavePhoto(pic6);
 }
@@ -298,6 +293,7 @@ void DefCamSettings(camera_config_t config, sensor_t * s){
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
     Serial.printf("Camera init failed with error 0x%x", err);
+    WebSerialPro.printf("Camera init failed with error 0x%x", err);
     return;
   }
 
@@ -328,14 +324,14 @@ void DefCamSettings(camera_config_t config, sensor_t * s){
 
 void initMicroSDCard(){
   // Start Micro SD card
-  Serial.println("Starting SD Card");
+  printEvent("Starting SD Card");
   if(!SD_MMC.begin()){
-    Serial.println("SD Card Mount Failed");
+    printEvent("SD Card Mount Failed");
     return;
   }
   uint8_t cardType = SD_MMC.cardType();
   if(cardType == CARD_NONE){
-    Serial.println("No SD Card attached");
+    printEvent("No SD Card attached");
     return;
   }
 }
@@ -350,7 +346,7 @@ void takeSavePhoto(String path){
   
   
   if(!fb) {
-    Serial.println("Camera capture failed.");
+    printEvent("Camera capture failed.");
     return;
   }
 
@@ -358,11 +354,12 @@ void takeSavePhoto(String path){
   fs::FS &fs = SD_MMC; 
   File file = fs.open(path.c_str(), FILE_WRITE);
   if(!file){
-    Serial.println("Failed to open file in writing mode");
+    printEvent("Failed to open file in writing mode");
   } 
   else {
     file.write(fb->buf, fb->len); // payload (image), payload length
     Serial.printf("Saved file to path: %s\n", path.c_str());
+    WebSerialPro.printf("Saved file to path: %s\n", path.c_str());
   }
   file.close();
   
@@ -372,11 +369,12 @@ void takeSavePhoto(String path){
 }
 
 void deleteFile(fs::FS &fs, const char * path){
-    Serial.printf("Deleting file: %s\n", path);
+      Serial.printf("Deleting file: %s\n", path);
+      WebSerialPro.printf("Deleting file: %s\n", path);
     if(fs.remove(path)){
-        Serial.println("File deleted.");
+       printEvent("File deleted.");
     } else {
-        Serial.println("Delete failed.");
+        printEvent("Delete failed.");
     }
 }
 
@@ -391,7 +389,7 @@ void gray_2_color(sensor_t * s){
 
   s = esp_camera_sensor_get();
   s->set_special_effect(s, 0);
-  Serial.println("Color Complete!");
+  printEvent("Color Complete!");
 
 }
 
@@ -402,7 +400,8 @@ void rotate_180(sensor_t * s, bool& flip_set){
 
   flip_set = !flip_set;
 
-  Serial.println(flip_set);
+ Serial.println(flip_set);
+ WebSerialPro.println(flip_set);
 
 }
 
@@ -411,7 +410,7 @@ void spec_filt(sensor_t * s){
   s = esp_camera_sensor_get();
   s->set_special_effect(s, 1);
 
-  Serial.println("Filter on.");
+ printEvent("Filter on.");
 
 }
 
@@ -421,7 +420,7 @@ void remove_filt(sensor_t * s){
   s->set_special_effect(s, 0);
   s->set_vflip(s, 0);
 
-  Serial.println("All filters off.");
+  printEvent("All filters off.");
   
 }
 
