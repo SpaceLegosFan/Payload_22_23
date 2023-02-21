@@ -83,7 +83,7 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   WebSerialPro.println(myData.command);
 
   // Switch decides which function to execute
-  switch(myData.command){
+  switch(myData.command) {
     case 3:
       take_picture();
       break;
@@ -178,11 +178,11 @@ void recvMsg(uint8_t *data, size_t len) {
   }
   WebSerialPro.println(d);
   d.toLowerCase();
-  if(d.indexOf("camera command = ") != -1){
+  if(d.indexOf("camera command = ") != -1) {
     int radioCommand = d.substring(d.indexOf("=") + 2).toInt();
     WebSerialPro.print("The radio command is: ");
     WebSerialPro.println(radioCommand);
-    switch(radioCommand){
+    switch(radioCommand) {
     case 3:
       take_picture();
       break;
@@ -228,7 +228,7 @@ void gray_2_color() {
   printEvent("Ok!");
 }
 
-void rotate_180(){
+void rotate_180() {
   printEvent("Rotate image 180");
   String pic3 = "/flipped.jpg";
   gray_2_color(s);
@@ -237,7 +237,7 @@ void rotate_180(){
   printEvent("Ok!");
 }
 
-void spec_filt(){
+void spec_filt() {
   printEvent("Special effects filter");
   String pic4 = "/negative.jpg";
   rotate_180(s, flip_set);
@@ -246,7 +246,7 @@ void spec_filt(){
   printEvent("Ok!");
 }
 
-void remove_filt(){
+void remove_filt() {
   printEvent("Remove all filters");
   String pic5 = "/normal2.jpg";
   remove_filt(s);
@@ -256,7 +256,7 @@ void remove_filt(){
   takeSavePhoto(pic6);
 }
 
-void DefCamSettings(camera_config_t config, sensor_t * s){
+void DefCamSettings(camera_config_t config, sensor_t * s) {
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
   config.pin_d0 = Y2_GPIO_NUM;
@@ -279,7 +279,7 @@ void DefCamSettings(camera_config_t config, sensor_t * s){
   config.pixel_format = PIXFORMAT_JPEG; //YUV422,GRAYSCALE,RGB565,JPEG
 
   // Select lower framesize if the camera doesn't support PSRAM
-  if(psramFound()){
+  if(psramFound()) {
     config.frame_size = FRAMESIZE_UXGA; // FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA
     config.jpeg_quality = 10; //10-63 lower number means higher quality
     config.fb_count = 2;
@@ -322,21 +322,21 @@ void DefCamSettings(camera_config_t config, sensor_t * s){
   s->set_colorbar(s, 0);       // 0 = disable , 1 = enable
 }
 
-void initMicroSDCard(){
+void initMicroSDCard() {
   // Start Micro SD card
   printEvent("Starting SD Card");
-  if(!SD_MMC.begin()){
+  if(!SD_MMC.begin()) {
     printEvent("SD Card Mount Failed");
     return;
   }
   uint8_t cardType = SD_MMC.cardType();
-  if(cardType == CARD_NONE){
+  if(cardType == CARD_NONE) {
     printEvent("No SD Card attached");
     return;
   }
 }
 
-void takeSavePhoto(String path){
+void takeSavePhoto(String path) {
   // Take Picture with Camera
 
   vTaskDelay(stut);
@@ -353,7 +353,7 @@ void takeSavePhoto(String path){
   // Save picture to microSD card
   fs::FS &fs = SD_MMC; 
   File file = fs.open(path.c_str(), FILE_WRITE);
-  if(!file){
+  if(!file) {
     printEvent("Failed to open file in writing mode");
   } 
   else {
@@ -368,24 +368,24 @@ void takeSavePhoto(String path){
   
 }
 
-void deleteFile(fs::FS &fs, const char * path){
-      Serial.printf("Deleting file: %s\n", path);
-      WebSerialPro.printf("Deleting file: %s\n", path);
-    if(fs.remove(path)){
-       printEvent("File deleted.");
-    } else {
-        printEvent("Delete failed.");
-    }
+void deleteFile(fs::FS &fs, const char * path) {
+  Serial.printf("Deleting file: %s\n", path);
+  WebSerialPro.printf("Deleting file: %s\n", path);
+  if(fs.remove(path)) {
+    printEvent("File deleted.");
+  } else {
+    printEvent("Delete failed.");
+  }
 }
 
-void color_2_gray(sensor_t * s){
+void color_2_gray(sensor_t * s) {
 
   s = esp_camera_sensor_get();
   s->set_special_effect(s, 2);
 
 }
 
-void gray_2_color(sensor_t * s){
+void gray_2_color(sensor_t * s) {
 
   s = esp_camera_sensor_get();
   s->set_special_effect(s, 0);
@@ -393,19 +393,19 @@ void gray_2_color(sensor_t * s){
 
 }
 
-void rotate_180(sensor_t * s, bool& flip_set){
+void rotate_180(sensor_t * s, bool& flip_set) {
 
   s = esp_camera_sensor_get();
   s->set_vflip(s, !flip_set);
 
   flip_set = !flip_set;
 
- Serial.println(flip_set);
- WebSerialPro.println(flip_set);
+  Serial.println(flip_set);
+  WebSerialPro.println(flip_set);
 
 }
 
-void spec_filt(sensor_t * s){
+void spec_filt(sensor_t * s) {
 
   s = esp_camera_sensor_get();
   s->set_special_effect(s, 1);
@@ -414,7 +414,7 @@ void spec_filt(sensor_t * s){
 
 }
 
-void remove_filt(sensor_t * s){
+void remove_filt(sensor_t * s) {
 
   s = esp_camera_sensor_get();
   s->set_special_effect(s, 0);
@@ -424,7 +424,7 @@ void remove_filt(sensor_t * s){
   
 }
 
-void printEvent(const char* event){
+void printEvent(const char* event) {
   Serial.println(event);
   WebSerialPro.println(event);
 }
