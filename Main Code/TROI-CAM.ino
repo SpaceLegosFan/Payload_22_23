@@ -62,7 +62,7 @@ bool flip_set = 0;
 const TickType_t stut = 3000 / portTICK_PERIOD_MS; // Change this to change the time, the whole number corresponds with milliseconds
 
 // This is the TRANSMITTER (ESP32-Main) MAC address--change this!
-uint8_t broadcastAddress[] = {0xC0, 0x49, 0xEF, 0x31, 0x03, 0x34};
+uint8_t broadcastAddress[] = {0x94, 0xE6, 0x86, 0xA7, 0x7E, 0x88};
 
 //  Structure example to send data
 //  Must match the sender structure
