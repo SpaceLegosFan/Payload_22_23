@@ -47,7 +47,7 @@ const char* ssid_backup = "ND-guest";
 const char* password_backup = "";
 
 // Keep track of number of pictures
-unsigned int pictureNumber = 0;
+unsigned int pictureNumber = 1;
 
 // Stores the camera configuration parameters
 camera_config_t config;
@@ -205,8 +205,11 @@ void recvMsg(uint8_t *data, size_t len) {
 }
 
 void take_picture() {
+  takeJunkPhoto();
   printEvent("Take picture.");
-  String pic1 = "/normal1.jpg";
+  String pic1 = "/normal";
+  pic1 += pictureNumber;
+  pic1 += ".jpg";
   takeSavePhoto(pic1);
   printEvent("Ok!");
 }
@@ -426,4 +429,10 @@ void remove_filt(sensor_t * s) {
 void printEvent(const char* event) {
   Serial.println(event);
   WebSerialPro.println(event);
+}
+
+void takeJunkPhoto(){
+  String initial_path_junk = "/null.jpg";
+  takeSavePhoto(initial_path_junk);
+  deleteFile(SD_MMC, "/null.jpg");
 }
