@@ -66,7 +66,7 @@ const char* ssid_backup = "ND-guest";
 const char* password_backup = "";
 
 // ESP-NOW - THIS NEEDS TO BE CHANGED, MAC ADDRESS NOT VALID
-uint8_t broadcastAddress[] = {0xC8, 0xF0, 0x9E, 0x9A, 0x83, 0x68};
+uint8_t broadcastAddress[] = {0xC8, 0xF0, 0x9E, 0x9D, 0x46, 0x40};
 typedef struct struct_message {
   char timestamp[32];
   int command;
