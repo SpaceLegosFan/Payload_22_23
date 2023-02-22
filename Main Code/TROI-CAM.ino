@@ -79,7 +79,6 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   memcpy(&myData, incomingData, sizeof(myData));
 
   Serial.println(myData.command);
-  WebSerialPro.println(myData.command);
 
   // Switch decides which function to execute
   executeRadioCommand(myData.command);
