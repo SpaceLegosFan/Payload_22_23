@@ -256,6 +256,11 @@ void recvMsg(uint8_t *data, size_t len) {
     WebSerialPro.print("The radio command is: ");
     WebSerialPro.println(command);
   }
+  else if(d == "print steps"){
+    WebSerialPro.println(num_deployment_LeadScrew_steps);
+  }
+  else if(d.indexOf("steps =") != -1)    
+    num_deployment_LeadScrew_steps = d.substring(d.indexOf("=") + 2).toInt();
 }
 
 /*
