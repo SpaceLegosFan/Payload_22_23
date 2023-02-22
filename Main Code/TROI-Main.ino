@@ -173,6 +173,7 @@ void setup() {
   while (!checkLaunch()) {
     delay(100);
     updateLaunch();
+    checkSerialMessage();
   }
   printEvent("We Have Launched!");
 
@@ -531,10 +532,8 @@ void sendData(int commandData) {
   // Send message via ESP-NOW
   esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
    
-  if (result == ESP_OK) {
+  if (result == ESP_OK)
     printEvent("Sent with success");
-  }
-  else {
+  else
     printEvent("Error sending the data");
-  }
 }
