@@ -28,8 +28,8 @@ NDRT Payload 2022-2023
 #define motorInterfaceType 1
 #define leadDIR 12
 #define leadSTEP 14
-#define cameraDIR 34
-#define cameraSTEP 35
+#define cameraDIR 12 // 34
+#define cameraSTEP 14 // 35
 #define ACCELERATION_LAND_TOLERANCE .3
 #define GYRO_LAND_TOLERANCE 5
 #define ACCELERATION_LAUNCH_TOLERANCE 30
@@ -246,6 +246,8 @@ void recvMsg(uint8_t *data, size_t len) {
   for(int i=0; i < len; i++) {
     d += char(data[i]);
   }
+  WebSerialPro.println("Here");
+  Serial.println("Here");
   WebSerialPro.println(d);
   d.toLowerCase();
   if(d == "run motor")
