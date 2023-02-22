@@ -196,6 +196,7 @@ void take_picture() {
   pic1 += ".jpg";
   takeSavePhoto(pic1);
   printEvent("Ok!");
+  pictureNumber++;
 }
 
 void color_2_gray() {
