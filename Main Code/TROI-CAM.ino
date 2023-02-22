@@ -82,7 +82,11 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   WebSerialPro.println(myData.command);
 
   // Switch decides which function to execute
-  switch(myData.command) {
+  executeRadioCommand(myData.command);
+}
+
+void executeRadioCommand(int command){
+  switch(command) {
     case 3:
       take_picture();
       break;
@@ -177,35 +181,15 @@ void recvMsg(uint8_t *data, size_t len) {
   }
   WebSerialPro.println(d);
   d.toLowerCase();
-  if(d.indexOf("camera command = ") != -1) {
+  if(d.indexOf("radio command = ") != -1) {
     int radioCommand = d.substring(d.indexOf("=") + 2).toInt();
     WebSerialPro.print("The radio command is: ");
     WebSerialPro.println(radioCommand);
-    switch(radioCommand) {
-    case 3:
-      take_picture();
-      break;
-    case 4:
-      color_2_gray();
-      break;
-    case 5:
-      gray_2_color();
-      break;
-    case 6:
-      rotate_180();
-      break;
-    case 7:
-      spec_filt();
-      break;
-    case 8:
-      remove_filt();
-      break;
-    }
+    executeRadioCommand(radioCommand);
   }
 }
 
 void take_picture() {
-  takeJunkPhoto();
   printEvent("Take picture.");
   String pic1 = "picture";
   pic1 += pictureNumber;
@@ -216,46 +200,32 @@ void take_picture() {
 
 void color_2_gray() {
   printEvent("Color to grayscale");
-  String pic2 = "/grayscale.jpg";
   color_2_gray(s);
-  takeSavePhoto(pic2);
   printEvent("Ok!");
 }
 
 void gray_2_color() {
   printEvent("Grayscale to color");
-  String pic7 = "/grayscaletocolor.jpg";
   gray_2_color(s);
-  takeSavePhoto(pic7);
   printEvent("Ok!");
 }
 
 void rotate_180() {
   printEvent("Rotate image 180");
-  String pic3 = "/flipped.jpg";
-  gray_2_color(s);
   rotate_180(s, flip_set);
-  takeSavePhoto(pic3);
   printEvent("Ok!");
 }
 
 void spec_filt() {
   printEvent("Special effects filter");
-  String pic4 = "/negative.jpg";
-  rotate_180(s, flip_set);
   spec_filt(s);
-  takeSavePhoto(pic4);
   printEvent("Ok!");
 }
 
 void remove_filt() {
   printEvent("Remove all filters");
-  String pic5 = "/normal2.jpg";
   remove_filt(s);
-  takeSavePhoto(pic5);
   printEvent("Ok!");  
-  String pic6 = "/normal3.jpg";
-  takeSavePhoto(pic6);
 }
 
 void DefCamSettings(camera_config_t config, sensor_t * s) {
@@ -423,16 +393,10 @@ void remove_filt(sensor_t * s) {
   s->set_vflip(s, 0);
 
   printEvent("All filters off.");
-  
+
 }
 
 void printEvent(const char* event) {
   Serial.println(event);
   WebSerialPro.println(event);
-}
-
-void takeJunkPhoto(){
-  String initial_path_junk = "/null.jpg";
-  takeSavePhoto(initial_path_junk);
-  deleteFile(SD_MMC, "/null.jpg");
 }
