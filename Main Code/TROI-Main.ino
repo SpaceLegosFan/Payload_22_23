@@ -41,13 +41,13 @@ TwoWire I2CSensors2 = TwoWire(1);
 Adafruit_BNO055 bno = Adafruit_BNO055(-1, BNO055_ADDRESS_A, &I2CSensors);
 Adafruit_BNO055 bno2 = Adafruit_BNO055(8, BNO055_ADDRESS_A, &I2CSensors2);
 
-imu::Vector<3>* accelerationQueue;
-imu::Vector<3>* gyroQueue;
-int size;
+imu::Vector<3>* accelerationQueue = new imu::Vector<3>[10];;
+imu::Vector<3>* gyroQueue = new imu::Vector<3>[10];
+int size = 0;
 
 AccelStepper LeadScrewStepper(motorInterfaceType, leadSTEP, leadDIR);
 AccelStepper CameraStepper(motorInterfaceType, cameraSTEP, cameraDIR);
-float cameraAngle;
+float cameraAngle = 0.0;
 
 // Motor Values
 float travel_distance = 8.6; // Ask Spencer or https://drive.google.com/drive/u/0/folders/1Yd59MVs0kGjNgtfuYpVg5CDFZwnHGlRj.
@@ -64,6 +64,7 @@ const char* ssid = "\x48\x75\x6e\x74\x65\x72\xe2\x80\x99\x73\x20\x69\x50\x68\x6f
 const char* password = "hunter123";  // WiFi Password
 const char* ssid_backup = "ND-guest";
 const char* password_backup = "";
+String serialMessage = "";
 
 // ESP-NOW - THIS NEEDS TO BE CHANGED, MAC ADDRESS NOT VALID
 uint8_t broadcastAddress[] = {0xC8, 0xF0, 0x9E, 0x9D, 0x46, 0x40};
@@ -79,12 +80,7 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
 
-
 void setup() {
-  size = 0;
-  cameraAngle = 0.0;
-  accelerationQueue = new imu::Vector<3>[10];
-  gyroQueue = new imu::Vector<3>[10];
   Serial.begin(115200);
 
   // Wifi setup. Accessible at "<IP Address>/webserial" in browser
@@ -92,14 +88,14 @@ void setup() {
   WiFi.begin(ssid, password);
   delay(500);
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    Serial.printf("WiFi Failed!\n");
+    Serial.println("WiFi Primary Failed!");
     WiFi.begin(ssid_backup, password_backup);
     delay(500);
     if (WiFi.waitForConnectResult() != WL_CONNECTED) {
-      Serial.printf("WiFi backup failed!\n");
+      Serial.println("WiFi backup failed!");
     }
     else
-      Serial.print("WiFi backup initialized");
+      Serial.println("WiFi backup initialized");
   }
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
@@ -131,7 +127,7 @@ void setup() {
   Wire.begin();
 
 
-  printEvent("Initialized all three TwoWire objects.");
+  printEvent("Initialized both I2CSensors and Wire.");
   if (!bno.begin()) {
     printEvent("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
     return;
@@ -143,8 +139,7 @@ void setup() {
   }
   printEvent("BNO2 is initialized.\n");
   bno.setExtCrystalUse(true);
-
-
+  bno2.setExtCrystalUse(true);
 
   // ESP-NOW setup
   if (esp_now_init() != ESP_OK) {
@@ -174,14 +169,10 @@ void setup() {
   delay(500);
   printEvent("Standing By for Launch.");
  
-
-  bool standby = true;
-  while (standby == true) {
+  updateLaunch();
+  while (!checkLaunch()) {
+    delay(100);
     updateLaunch();
-    standby = !checkLaunch();
-    if (standby == false) {
-      delay(100);
-    }
   }
   printEvent("We Have Launched!");
 
@@ -191,25 +182,20 @@ void setup() {
     delay(100);
   }
 
-
   // wait in standby mode and loop until landed
   printEvent("Standing By for Landing");
-  standby=true;
-  while(standby == true) {
-    updateLanding();
-    standby = !checkLanding();
-    if(standby == false) {
-      delay(100);
-    }
+  updateLanding();
+  while(!checkLanding()) {
+    delay(100);
   }
   printEvent("We Have Landed!");
   delay(1000);
 
   // After landing, check to make sure the payload tube is not rolling
+  printEvent("Standing by for checkRoll.");
   checkRoll();
   printEvent("Check Roll Finished.");
 
-  // 
   imu::Quaternion q = bno.getQuat();
   float yy = q.y() * q.y();
   float roll = atan2(2 * (q.w() * q.x() + q.y() * q.z()), 1 - 2 * (q.x() * q.x() + yy));
@@ -237,35 +223,37 @@ void setup() {
 
 // standby for RF commands
 void loop() {
+  // Below is hard-coding in a sample radio message from NASA. Since only one radio message here, ends code by returning.
+  interpretRadioString("XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3.");
+  return;
 }
 
 
 void recvMsg(uint8_t *data, size_t len) {
-  WebSerialPro.println("Received Data...");
+  printEvent("Received WebSerial Data...");
   String d = "";
   for(int i=0; i < len; i++) {
     d += char(data[i]);
   }
-  WebSerialPro.println("Here");
-  Serial.println("Here");
   WebSerialPro.println(d);
+  Serial.println(d);
   d.toLowerCase();
-  if(d == "run motor")
-    leadScrewRun();
+  if(d == "run motor"){
+    serialMessage = d;
+  }
   else if(d == "change direction")
     changeStepperDirection();
   else if(d.indexOf("radio string") != -1) {
-    String radioMessage = d.substring(d.indexOf("=") + 2);
-    WebSerialPro.print("The radio message is: ");
-    WebSerialPro.println(radioMessage);
-    interpretRadioString(radioMessage);
+    serialMessage = d;
   }
   else if(d.indexOf("camera turn") != -1) {
-    int angle = d.substring(d.indexOf("=") + 2).toInt();
-    WebSerialPro.print("The camera motor will turn ");
-    WebSerialPro.print(angle);
-    WebSerialPro.println(" degrees.");
-    spinCameraStepper(angle);
+    serialMessage = d;
+  }
+  else if(d.indexOf("radio command") != -1) {
+    int command = d.substring(d.indexOf("=") + 2).toInt();
+    executeRadioCommand(command);
+    WebSerialPro.print("The radio command is: ");
+    WebSerialPro.println(command);
   }
 }
 
@@ -274,36 +262,26 @@ void recvMsg(uint8_t *data, size_t len) {
 */
 void updateLaunch() {
   if (size >= 2) {
-    for (int i = 0; i < 1; i++) {
-      accelerationQueue[i] = accelerationQueue[i+1];
-    }
+    accelerationQueue[0] = accelerationQueue[1];
     size--;
   }
   accelerationQueue[size] = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
   size++;
 }
 
-
 /* 
   Using the acceleration queue, calculates the average acceleration for the last 10 points
   If the acceleration average is greater than the launch acceleration tolerance, returns true saying the rocket has launched
 */
 bool checkLaunch() {
-  float a_avg = 0;
+  float accelAverage = 0;
   for (int i = 0; i < size; i++) {
-    a_avg += accelerationQueue[i].magnitude();
+    accelAverage += accelerationQueue[i].magnitude();
   }
-  a_avg /= size;
-  storeData("a_avg", a_avg);
-  if (a_avg > ACCELERATION_LAUNCH_TOLERANCE == true) {
-    return true;
-  } else {
-    return false;
-  }
+  accelAverage /= size;
+  storeData("accelAverage", accelAverage);
+  return (accelAverage > ACCELERATION_LAUNCH_TOLERANCE == true);
 }
-
-
-
 
 /*
   Updates the acceleration and gyro vectors in their respective queues to be used by the checkLanding() function to check for landing.
@@ -321,46 +299,60 @@ void updateLanding() {
   size++;
 }
 
-
-
-
 /* 
   Using the acceleration and gyro queues, calculates the average acceleration and gyroscopic motion for the last 10 points
   If the acceleration and gyro averages are less than their respective landing tolerances, returns true saying the rocket has landed.
 */
 bool checkLanding() {
-  float accelerationAverage = 0;
+  float accelAverage = 0;
   float gyroAverage = 0;
   for (int i = 0; i < size; i++) {
-    accelerationAverage += accelerationQueue[i].magnitude();
+    accelAverage += accelerationQueue[i].magnitude();
     gyroAverage += gyroQueue[i].magnitude();
   }
-  accelerationAverage /= size;
+  accelAverage /= size;
   gyroAverage /= size;
-  storeData("accelerationAverage", accelerationAverage);
+  storeData("accelAverage", accelAverage);
   storeData("gyroAverage", gyroAverage);
-  gyroAverage -= 9.8;
-  if (accelerationAverage < ACCELERATION_LAND_TOLERANCE && gyroAverage < GYRO_LAND_TOLERANCE) {
-    return true;
-  } else {
-    return false;
-  }
+  accelAverage -= 9.8;
+  return (accelAverage < ACCELERATION_LAND_TOLERANCE && gyroAverage < GYRO_LAND_TOLERANCE);
 }
 
 void recordFlightData() {
   updateLanding();
-  float accelerationAverage = 0;
+  float accelAverage = 0;
   float gyroAverage = 0;
   for (int i = 0; i < size; i++) {
-    accelerationAverage += accelerationQueue[i].magnitude();
+    accelAverage += accelerationQueue[i].magnitude();
     gyroAverage += gyroQueue[i].magnitude();
   }
-  accelerationAverage /= size;
+  accelAverage /= size;
   gyroAverage /= size;
-  storeData("accelerationAverage", accelerationAverage);
+  storeData("accelAverage", accelAverage);
   storeData("gyroAverage", gyroAverage);
 }
 
+void checkSerialMessage(){
+  if(serialMessage != ""){
+    if(serialMessage == "run motor"){
+      leadScrewRun();
+    }
+    else if(serialMessage.indexOf("radio string") != -1) {
+      String radioMessage = serialMessage.substring(serialMessage.indexOf("=") + 2);
+      WebSerialPro.print("The radio message is: ");
+      WebSerialPro.println(radioMessage);
+      interpretRadioString(radioMessage);
+    }
+    else if(serialMessage.indexOf("camera turn") != -1) {
+      int angle = serialMessage.substring(serialMessage.indexOf("=") + 2).toInt();
+      WebSerialPro.print("The camera motor will turn ");
+      WebSerialPro.print(angle);
+      WebSerialPro.println(" degrees.");
+      spinCameraStepper(angle);
+    }
+    serialMessage = "";
+  }
+}
 
 bool checkRoll() {
   int countCheck = 0;
@@ -428,18 +420,6 @@ void spinCameraStepper(int angle) {
   while(CameraStepper.run()) {}
 }
 
-void writeFile(fs::FS &fs, const char * path, const char * message) {
-  File file = fs.open(path, FILE_WRITE);
-  if(!file) {
-  Serial.println("Failed to open file for writing");
-  return;
-  }
-if(!file.print(message)) {
-    Serial.println("Write failed");
-  }
-  file.close();
-}
-
 void appendFile(fs::FS &fs, const char * path, const char * message) {
   File file = fs.open(path, FILE_APPEND);
   if(!file) {
@@ -450,12 +430,6 @@ void appendFile(fs::FS &fs, const char * path, const char * message) {
     Serial.println("Append failed");
   }
   file.close();
-}
-
-void deleteFile(fs::FS &fs, const char * path) {
-  if(!fs.remove(path)) {
-    Serial.println("Delete failed");
-  }
 }
 
 void printTime() {
@@ -510,32 +484,37 @@ void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B
     message = message.substring(2);
   }
   for(int i = 0; i < numberCommands; i++) {
-    switch(commands[i]) {
-      case 1:
-        spinCameraStepper(60);
-        break;
-      case 2:
-        spinCameraStepper(-60);
-        break;
-      case 3:
-        sendData(3);
-        break;
-      case 4:
-        sendData(4);
-        break;
-      case 5:
-        sendData(5);
-        break;
-      case 6:
-        sendData(6);
-        break;
-      case 7:
-        sendData(7);
-        break;
-      case 8:
-        sendData(8);
-        break;
-    }
+    executeRadioCommand(commands[i]);
+    delay(10000);
+  }
+}
+
+void executeRadioCommand(int command){
+  switch(command) {
+    case 1:
+      spinCameraStepper(60);
+      break;
+    case 2:
+      spinCameraStepper(-60);
+      break;
+    case 3:
+      sendData(3);
+      break;
+    case 4:
+      sendData(4);
+      break;
+    case 5:
+      sendData(5);
+      break;
+    case 6:
+      sendData(6);
+      break;
+    case 7:
+      sendData(7);
+      break;
+    case 8:
+      sendData(8);
+      break;
   }
 }
 
@@ -547,8 +526,6 @@ void sendData(int commandData) {
 
   // Set values to send
   strcpy(myData.timestamp, timeString);
-
-  // Dummy test; sends random "commands"
   myData.command = commandData;
 
   // Send message via ESP-NOW
