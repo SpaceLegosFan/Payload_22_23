@@ -191,7 +191,7 @@ void recvMsg(uint8_t *data, size_t len) {
 
 void take_picture() {
   printEvent("Take picture.");
-  String pic1 = "picture";
+  String pic1 = "/picture";
   pic1 += pictureNumber;
   pic1 += ".jpg";
   takeSavePhoto(pic1);
