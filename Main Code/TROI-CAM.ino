@@ -12,7 +12,6 @@
 #include <Arduino.h>
 #include <esp_now.h>
 #include <WiFi.h>
-#include <WebSerialPro.h>
 #include "esp_camera.h"
 #include "FS.h"                // SD Card ESP32
 #include "SD_MMC.h"            // SD Card ESP32
@@ -39,12 +38,6 @@
 #define HREF_GPIO_NUM     23
 #define PCLK_GPIO_NUM     22
 
-// WiFi
-AsyncWebServer server(80);
-const char* ssid = "\x48\x75\x6e\x74\x65\x72\xe2\x80\x99\x73\x20\x69\x50\x68\x6f\x6e\x65"; // Your WiFi SSID
-const char* password = "hunter123";  // WiFi Password
-const char* ssid_backup = "ND-guest";
-const char* password_backup = "";
 
 // Keep track of number of pictures
 unsigned int pictureNumber = 1;
@@ -80,12 +73,7 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 
   Serial.println(myData.command);
 
-  // Switch decides which function to execute
-  executeRadioCommand(myData.command);
-}
-
-void executeRadioCommand(int command){
-  switch(command) {
+  switch(myData.command) {
     case 3:
       take_picture();
       break;
@@ -105,7 +93,9 @@ void executeRadioCommand(int command){
       remove_filt();
       break;
   }
+
 }
+
  
 void setup() {
   // Initialize Serial Monitor
@@ -114,25 +104,7 @@ void setup() {
   // Set device as a Wi-Fi Station
   WiFi.mode(WIFI_STA);
 
-  // Initalize WiFi for WebSerialPro. Accessible at "<IP Address>/webserial" in browser
-  WiFi.begin(ssid, password);
-  delay(500);
-  if (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    Serial.printf("WiFi Failed!\n");
-    WiFi.begin(ssid_backup, password_backup);
-    delay(500);
-    if (WiFi.waitForConnectResult() != WL_CONNECTED) {
-      Serial.printf("WiFi backup failed!\n");
-    }
-    else
-      Serial.print("WiFi backup initialized");
-  }
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP());
-  WebSerialPro.begin(&server);
-  WebSerialPro.msgCallback(recvMsg);
-  server.begin();
-  Serial.println("WiFi setup finished.");
+
 
   // Initalize ESP-NOW
   if (esp_now_init() != ESP_OK) {
@@ -172,21 +144,6 @@ void loop() {
 
 }
 
-void recvMsg(uint8_t *data, size_t len) {
-  WebSerialPro.println("Received Data...");
-  String d = "";
-  for(int i=0; i < len; i++) {
-    d += char(data[i]);
-  }
-  WebSerialPro.println(d);
-  d.toLowerCase();
-  if(d.indexOf("radio command = ") != -1) {
-    int radioCommand = d.substring(d.indexOf("=") + 2).toInt();
-    WebSerialPro.print("The radio command is: ");
-    WebSerialPro.println(radioCommand);
-    executeRadioCommand(radioCommand);
-  }
-}
 
 void take_picture() {
   printEvent("Take picture.");
@@ -265,7 +222,6 @@ void DefCamSettings(camera_config_t config, sensor_t * s) {
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
     Serial.printf("Camera init failed with error 0x%x", err);
-    WebSerialPro.printf("Camera init failed with error 0x%x", err);
     return;
   }
 
@@ -331,7 +287,6 @@ void takeSavePhoto(String path) {
   else {
     file.write(fb->buf, fb->len); // payload (image), payload length
     Serial.printf("Saved file to path: %s\n", path.c_str());
-    WebSerialPro.printf("Saved file to path: %s\n", path.c_str());
   }
   file.close();
   
@@ -342,7 +297,6 @@ void takeSavePhoto(String path) {
 
 void deleteFile(fs::FS &fs, const char * path) {
   Serial.printf("Deleting file: %s\n", path);
-  WebSerialPro.printf("Deleting file: %s\n", path);
   if(fs.remove(path)) {
     printEvent("File deleted.");
   } else {
@@ -373,7 +327,6 @@ void rotate_180(sensor_t * s, bool& flip_set) {
   flip_set = !flip_set;
 
   Serial.println(flip_set);
-  WebSerialPro.println(flip_set);
 
 }
 
@@ -398,5 +351,4 @@ void remove_filt(sensor_t * s) {
 
 void printEvent(const char* event) {
   Serial.println(event);
-  WebSerialPro.println(event);
 }
