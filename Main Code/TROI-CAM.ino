@@ -78,19 +78,19 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
       take_picture();
       break;
     case 4:
-      color_2_gray();
+      color_2_gray(s);
       break;
     case 5:
-      gray_2_color();
+      gray_2_color(s);
       break;
     case 6:
-      rotate_180();
+      rotate_180(s, flip_set);
       break;
     case 7:
-      spec_filt();
+      spec_filt(s);
       break;
     case 8:
-      remove_filt();
+      remove_filt(s);
       break;
   }
 
@@ -153,36 +153,6 @@ void take_picture() {
   takeSavePhoto(pic1);
   printEvent("Ok!");
   pictureNumber++;
-}
-
-void color_2_gray() {
-  printEvent("Color to grayscale");
-  color_2_gray(s);
-  printEvent("Ok!");
-}
-
-void gray_2_color() {
-  printEvent("Grayscale to color");
-  gray_2_color(s);
-  printEvent("Ok!");
-}
-
-void rotate_180() {
-  printEvent("Rotate image 180");
-  rotate_180(s, flip_set);
-  printEvent("Ok!");
-}
-
-void spec_filt() {
-  printEvent("Special effects filter");
-  spec_filt(s);
-  printEvent("Ok!");
-}
-
-void remove_filt() {
-  printEvent("Remove all filters");
-  remove_filt(s);
-  printEvent("Ok!");  
 }
 
 void DefCamSettings(camera_config_t config, sensor_t * s) {
@@ -305,48 +275,47 @@ void deleteFile(fs::FS &fs, const char * path) {
 }
 
 void color_2_gray(sensor_t * s) {
-
+  printEvent("Color to grayscale"); 
   s = esp_camera_sensor_get();
   s->set_special_effect(s, 2);
-
+  printEvent("Ok!");
 }
 
 void gray_2_color(sensor_t * s) {
-
+  gray_2_color(s);
   s = esp_camera_sensor_get();
   s->set_special_effect(s, 0);
   printEvent("Color Complete!");
-
+  printEvent("Ok!");
 }
 
 void rotate_180(sensor_t * s, bool& flip_set) {
-
+  printEvent("Rotate image 180");
   s = esp_camera_sensor_get();
   s->set_vflip(s, !flip_set);
 
   flip_set = !flip_set;
 
   Serial.println(flip_set);
-
+  printEvent("Ok!");
 }
 
 void spec_filt(sensor_t * s) {
-
+  printEvent("Special effects filter");
   s = esp_camera_sensor_get();
   s->set_special_effect(s, 1);
-
- printEvent("Filter on.");
-
+  printEvent("Filter on.");
+  printEvent("Ok!");
 }
 
 void remove_filt(sensor_t * s) {
-
+  printEvent("Remove all filters");
   s = esp_camera_sensor_get();
   s->set_special_effect(s, 0);
   s->set_vflip(s, 0);
 
   printEvent("All filters off.");
-
+  printEvent("Ok!");
 }
 
 void printEvent(const char* event) {
