@@ -178,7 +178,9 @@ void setup() {
   printEvent("We Have Launched!");
 
   // Wait a minimum of 60 seconds before standing by for landing. Record flight data during this.
-  for(int i = 0; i = 10 * 60; i++) {
+  for(int i = 0; i < 10 * 60; i++) {
+    if(i%100 == 0)
+      Serial.println("10 seconds have gone by");
     recordFlightData();
     delay(100);
   }
@@ -188,6 +190,7 @@ void setup() {
   updateLanding();
   while(!checkLanding()) {
     delay(100);
+    updateLanding();
   }
   printEvent("We Have Landed!");
   delay(1000);
@@ -226,6 +229,7 @@ void setup() {
 void loop() {
   // Below is hard-coding in a sample radio message from NASA. Since only one radio message here, ends code by returning.
   interpretRadioString("XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3.");
+  Serial.println("Done with all radio commands.");
   return;
 }
 
@@ -318,9 +322,12 @@ bool checkLanding() {
   }
   accelAverage /= size;
   gyroAverage /= size;
+  accelAverage -= 9.8;
   storeData("accelAverage", accelAverage);
   storeData("gyroAverage", gyroAverage);
-  accelAverage -= 9.8;
+  Serial.println(accelAverage);
+  Serial.println(gyroAverage);
+  Serial.println(accelAverage < ACCELERATION_LAND_TOLERANCE && gyroAverage < GYRO_LAND_TOLERANCE);
   return (accelAverage < ACCELERATION_LAND_TOLERANCE && gyroAverage < GYRO_LAND_TOLERANCE);
 }
 
