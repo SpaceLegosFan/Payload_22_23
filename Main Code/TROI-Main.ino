@@ -29,8 +29,8 @@ NDRT Payload 2022-2023
 #define motorInterfaceType 1
 #define leadDIR 12
 #define leadSTEP 14
-#define cameraDIR 12  // 34
-#define cameraSTEP 14 // 35
+#define cameraDIR 33  // 34
+#define cameraSTEP 25 // 35
 #define ACCELERATION_LAND_TOLERANCE .3
 #define GYRO_LAND_TOLERANCE 5
 #define ACCELERATION_LAUNCH_TOLERANCE 30
@@ -70,22 +70,19 @@ String serialMessage = "";
 
 // ESP-NOW - THIS NEEDS TO BE CHANGED, MAC ADDRESS NOT VALID
 uint8_t broadcastAddress[] = {0xC8, 0xF0, 0x9E, 0x9D, 0x46, 0x40};
-typedef struct struct_message
-{
+typedef struct struct_message{
   char timestamp[32];
   int command;
 } struct_message;
 struct_message myData;
 esp_now_peer_info_t peerInfo;
 
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
-{
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print("\r\nLast Packet Send Status:\t");
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
 
-void setup()
-{
+void setup() {
   Serial.begin(115200);
 
   // Wifi setup. Accessible at "<IP Address>/webserial" in browser
@@ -238,16 +235,14 @@ void setup()
 }
 
 // standby for RF commands
-void loop()
-{
+void loop() {
   // Below is hard-coding in a sample radio message from NASA. Since only one radio message here, ends code by returning.
   interpretRadioString("XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3.");
   Serial.println("Done with all radio commands.");
   return;
 }
 
-void recvMsg(uint8_t *data, size_t len)
-{
+void recvMsg(uint8_t *data, size_t len) {
   printEvent("Received WebSerial Data...");
   String d = "";
   for (int i = 0; i < len; i++)
@@ -289,8 +284,7 @@ void recvMsg(uint8_t *data, size_t len)
 /*
   Updates the acceleration vectors in the acceleration queue to be used by the checkLaunch() function to check for a launch
 */
-void updateLaunch()
-{
+void updateLaunch() {
   if (size >= 2)
   {
     accelerationQueue[0] = accelerationQueue[1];
@@ -304,8 +298,7 @@ void updateLaunch()
   Using the acceleration queue, calculates the average acceleration for the last 10 points
   If the acceleration average is greater than the launch acceleration tolerance, returns true saying the rocket has launched
 */
-bool checkLaunch()
-{
+bool checkLaunch() {
   float accelAverage = 0;
   for (int i = 0; i < size; i++)
   {
@@ -319,8 +312,7 @@ bool checkLaunch()
 /*
   Updates the acceleration and gyro vectors in their respective queues to be used by the checkLanding() function to check for landing.
 */
-void updateLanding()
-{
+void updateLanding() {
   if (size >= 10)
   {
     for (int i = 0; i < 9; i++)
@@ -339,8 +331,7 @@ void updateLanding()
   Using the acceleration and gyro queues, calculates the average acceleration and gyroscopic motion for the last 10 points
   If the acceleration and gyro averages are less than their respective landing tolerances, returns true saying the rocket has landed.
 */
-bool checkLanding()
-{
+bool checkLanding() {
   float accelAverage = 0;
   float gyroAverage = 0;
   for (int i = 0; i < size; i++)
@@ -359,8 +350,7 @@ bool checkLanding()
   return (accelAverage < ACCELERATION_LAND_TOLERANCE && gyroAverage < GYRO_LAND_TOLERANCE);
 }
 
-void recordFlightData()
-{
+void recordFlightData() {
   updateLanding();
   float accelAverage = 0;
   float gyroAverage = 0;
@@ -375,8 +365,7 @@ void recordFlightData()
   storeData("gyroAverage", gyroAverage);
 }
 
-void checkSerialMessage()
-{
+void checkSerialMessage() {
   if (serialMessage != "")
   {
     if (serialMessage == "run motor")
@@ -402,8 +391,7 @@ void checkSerialMessage()
   }
 }
 
-bool checkRoll()
-{
+bool checkRoll() {
   int countCheck = 0;
   float currentRoll = 0;
   float prevRoll = 0;
@@ -453,21 +441,18 @@ bool checkRoll()
   }
 }
 
-void changeStepperDirection()
-{
+void changeStepperDirection() {
   num_deployment_LeadScrew_steps *= -1;
 }
 
-void leadScrewRun()
-{
+void leadScrewRun() {
   LeadScrewStepper.move(num_deployment_LeadScrew_steps);
   while (LeadScrewStepper.run())
   {
   }
 }
 
-void spinCameraStepper(int angle)
-{
+void spinCameraStepper(int angle) {
   if (cameraAngle + angle > 180)
   {
     angle = 360 - angle;
@@ -484,8 +469,7 @@ void spinCameraStepper(int angle)
   }
 }
 
-void appendFile(fs::FS &fs, const char *path, const char *message)
-{
+void appendFile(fs::FS &fs, const char *path, const char *message) {
   File file = fs.open(path, FILE_APPEND);
   if (!file)
   {
@@ -499,8 +483,7 @@ void appendFile(fs::FS &fs, const char *path, const char *message)
   file.close();
 }
 
-void printTime()
-{
+void printTime() {
   DateTime now = rtc.now();
   char bufferString[] = "DD MMM hh:mm:ss";
   char *timeString = now.toString(bufferString);
@@ -510,8 +493,7 @@ void printTime()
   WebSerialPro.print(" - ");
 }
 
-void storeEvent(const char *event)
-{
+void storeEvent(const char *event) {
   DateTime now = rtc.now();
   char bufferString[] = "DD MMM hh:mm:ss";
   char *timeString = now.toString(bufferString);
@@ -521,8 +503,7 @@ void storeEvent(const char *event)
   appendFile(SD, "/payload.txt", "\n");
 }
 
-void storeData(const char *type, float data)
-{
+void storeData(const char *type, float data) {
   DateTime now = rtc.now();
   char bufferString[] = "DD MMM hh:mm:ss";
   char *timeString = now.toString(bufferString);
@@ -536,16 +517,14 @@ void storeData(const char *type, float data)
   appendFile(SD, "/data.txt", "\n");
 }
 
-void printEvent(const char *event)
-{
+void printEvent(const char *event) {
   printTime();
   Serial.println(event);
   WebSerialPro.println(event);
   storeEvent(event);
 }
 
-void interpretRadioString(String message)
-{ // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3."
+void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3."
   message.toUpperCase();
   message = message.substring(6);
   int numberCommands = message.length() / 3;
@@ -563,8 +542,7 @@ void interpretRadioString(String message)
   }
 }
 
-void executeRadioCommand(int command)
-{
+void executeRadioCommand(int command) {
   switch (command)
   {
   case 1:
@@ -594,8 +572,7 @@ void executeRadioCommand(int command)
   }
 }
 
-void sendData(int commandData)
-{
+void sendData(int commandData) {
   // Get Timestamp
   DateTime now = rtc.now();
   char bufferString[] = "DD MMM hh:mm:ss";
