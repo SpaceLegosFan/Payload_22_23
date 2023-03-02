@@ -29,8 +29,8 @@ NDRT Payload 2022-2023
 #define motorInterfaceType 1
 #define leadDIR 12
 #define leadSTEP 14
-#define cameraDIR 33  // 34
-#define cameraSTEP 25 // 35
+#define cameraDIR 33  // 33
+#define cameraSTEP 25 // 25
 #define ACCELERATION_LAND_TOLERANCE .3
 #define GYRO_LAND_TOLERANCE 5
 #define ACCELERATION_LAUNCH_TOLERANCE 30
@@ -117,6 +117,13 @@ void setup() {
   WebSerialPro.println("SD Card Initialized.");
   appendFile(SD, "/payload.txt", "SD Card Initialized.\n");
 
+  // I2C Sensors
+  I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
+  I2CSensors2.begin(I2C_SDA2, I2C_SCL2, 100000);
+  Wire.begin();
+
+  Serial.println("Initialized both I2CSensors and Wire.");
+
   // RTC Clock
   if (!rtc.begin(&I2CSensors))
   {
@@ -124,24 +131,18 @@ void setup() {
   }
   printEvent("RTC Clock Initialized.");
 
-  // I2C Sensors
-  I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
-  I2CSensors2.begin(I2C_SDA2, I2C_SCL2, 100000);
-  Wire.begin();
-
-  printEvent("Initialized both I2CSensors and Wire.");
   if (!bno.begin())
   {
     printEvent("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
     return;
   }
-  printEvent("BNO is initialized.\n");
+  printEvent("BNO is initialized.");
   if (!bno2.begin())
   {
     printEvent("Ooops, no BNO055-2 detected ... Check your wiring or I2C ADDR!");
     return;
   }
-  printEvent("BNO2 is initialized.\n");
+  printEvent("BNO2 is initialized.");
   bno.setExtCrystalUse(true);
   bno2.setExtCrystalUse(true);
 
@@ -540,11 +541,14 @@ void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B
   for (int i = 0; i < numberCommands; i++)
   {
     executeRadioCommand(commands[i]);
-    delay(10000);
+    delay(5000);
   }
 }
 
 void executeRadioCommand(int command) {
+  char string[50] = "I am executing command ";
+  string[strlen(string)] = (char)command + 48;
+  printEvent(string);
   switch (command)
   {
   case 1:
