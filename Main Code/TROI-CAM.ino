@@ -18,6 +18,7 @@
 #include "soc/soc.h"           // Disable brownout problems
 #include "soc/rtc_cntl_reg.h"  // Disable brownout problems
 #include "driver/rtc_io.h"
+#include <string>
 
 // Pin definition for CAMERA_MODEL_AI_THINKER
 // Change pin definition if you're using another ESP32 with camera module
@@ -51,29 +52,14 @@ sensor_t *s;
 // Used for the flip 180 deg command
 bool flip_set = 0;
 
+String string = "";
+
 // Time before the picture is taken each time the "take picture" command is called
 const TickType_t stut = 3000 / portTICK_PERIOD_MS; // Change this to change the time, the whole number corresponds with milliseconds
 
-// This is the TRANSMITTER (ESP32-Main) MAC address--change this!
-uint8_t broadcastAddress[] = {0x94, 0xE6, 0x86, 0xA7, 0x7E, 0x88};
-
-//  Structure example to send data
-//  Must match the sender structure
-typedef struct struct_message {
-    char timestamp[32];
-    int command;
-} struct_message;
-
-// Create a struct_message called myData
-struct_message myData;
-
 // callback function that will be executed when data is received
-void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
-  memcpy(&myData, incomingData, sizeof(myData));
-
-  Serial.println(myData.command);
-
-  switch(myData.command) {
+void executeRadioCommand(int command) {
+  switch(command) {
     case 3:
       take_picture();
       break;
@@ -93,7 +79,6 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
       remove_filt(s);
       break;
   }
-
 }
 
  
@@ -103,18 +88,6 @@ void setup() {
   
   // Set device as a Wi-Fi Station
   WiFi.mode(WIFI_STA);
-
-
-
-  // Initalize ESP-NOW
-  if (esp_now_init() != ESP_OK) {
-    printEvent("Error initializing ESP-NOW");
-    return;
-  }
-  
-  // Once ESPNow is successfully Init, we will register for recv CB to
-  // get recv packer info
-  esp_now_register_recv_cb(OnDataRecv);
 
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
 
@@ -141,7 +114,21 @@ void setup() {
 }
  
 void loop() {
-
+  while(Serial.available() > 0){
+    char character = Serial.read();
+    Serial.println(character);
+    if(character == '<'){
+      while(1){
+        character = Serial.read();
+        if(character == '>')
+          break;
+        string += character;
+      }
+      int command = string.substring(string.indexOf("=") + 2).toInt();
+      executeRadioCommand(command);
+      string = "";
+    }
+  }
 }
 
 
