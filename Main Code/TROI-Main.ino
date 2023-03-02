@@ -22,7 +22,6 @@ NDRT Payload 2022-2023
 #include "FS.h"
 #include "SD.h"
 #include "RTClib.h"
-#include <HardwareSerial.h>
 #define I2C_SDA 21
 #define I2C_SCL 22
 #define I2C_SDA2 32
@@ -30,8 +29,8 @@ NDRT Payload 2022-2023
 #define motorInterfaceType 1
 #define leadDIR 12
 #define leadSTEP 14
-#define cameraDIR 12  // 33
-#define cameraSTEP 14 // 25
+#define cameraDIR 33  // 34
+#define cameraSTEP 25 // 35
 #define ACCELERATION_LAND_TOLERANCE .3
 #define GYRO_LAND_TOLERANCE 5
 #define ACCELERATION_LAUNCH_TOLERANCE 30
@@ -68,6 +67,20 @@ const char *password = "hunter123";                                             
 const char *ssid_backup = "ND-guest";
 const char *password_backup = "";
 String serialMessage = "";
+
+// ESP-NOW - THIS NEEDS TO BE CHANGED, MAC ADDRESS NOT VALID
+uint8_t broadcastAddress[] = {0xC8, 0xF0, 0x9E, 0x9D, 0x46, 0x40};
+typedef struct struct_message{
+  char timestamp[32];
+  int command;
+} struct_message;
+struct_message myData;
+esp_now_peer_info_t peerInfo;
+
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+  Serial.print("\r\nLast Packet Send Status:\t");
+  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+}
 
 void setup() {
   Serial.begin(115200);
@@ -131,6 +144,25 @@ void setup() {
   printEvent("BNO2 is initialized.\n");
   bno.setExtCrystalUse(true);
   bno2.setExtCrystalUse(true);
+
+  // ESP-NOW setup
+  if (esp_now_init() != ESP_OK)
+  {
+    printEvent("Error initializing ESP-NOW.");
+    return;
+  }
+  esp_now_register_send_cb(OnDataSent);
+  // Register peer
+  delay(1000);
+  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+  peerInfo.channel = 0;
+  peerInfo.encrypt = false;
+  if (esp_now_add_peer(&peerInfo) != ESP_OK)
+  {
+    printEvent("Failed to add peer.");
+    return;
+  }
+  printEvent("ESP-NOW setup finished.");
 
   // Set stepper motor speeds/accelerations
   LeadScrewStepper.setMaxSpeed(400); // 800
@@ -493,6 +525,8 @@ void printEvent(const char *event) {
 }
 
 void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3."
+  server.end();
+ WiFi.disconnect();
   message.toUpperCase();
   message = message.substring(6);
   int numberCommands = message.length() / 3;
@@ -520,9 +554,7 @@ void executeRadioCommand(int command) {
     spinCameraStepper(-60);
     break;
   case 3:
-    Serial.print("<radio command = 3>");
-    WebSerialPro.println("<radio command = 3>");
-    //sendData(3);
+    sendData(3);
     break;
   case 4:
     sendData(4);
@@ -542,8 +574,21 @@ void executeRadioCommand(int command) {
   }
 }
 
-void sendData(int command){
-  Serial.print("<radio command = ");
-  Serial.print(command);
-  Serial.println(">");
+void sendData(int commandData) {
+  // Get Timestamp
+  DateTime now = rtc.now();
+  char bufferString[] = "DD MMM hh:mm:ss";
+  char *timeString = now.toString(bufferString);
+
+  // Set values to send
+  strcpy(myData.timestamp, timeString);
+  myData.command = commandData;
+
+  // Send message via ESP-NOW
+  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *)&myData, sizeof(myData));
+
+  if (result == ESP_OK)
+    printEvent("Sent with success");
+  else
+    printEvent("Error sending the data");
 }
