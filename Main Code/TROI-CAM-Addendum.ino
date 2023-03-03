@@ -57,11 +57,8 @@ boolean takeNewPhoto = true;
 bool taskCompleted = false;
 
 
-  
-  String fileName = "empty";    
+String fileName = "empty";    
 
-// Keep track of number of pictures
-unsigned int pictureNumber = 1;
 
 // Stores the camera configuration parameters
 camera_config_t config;
@@ -157,9 +154,8 @@ void initEEPROM(){
 
 }
   
-  void initCAMERA(){
+  void initCAMERA(camera_config_t config, sensor_t * s){
 
-    camera_config_t config;
     config.ledc_channel = LEDC_CHANNEL_0;
     config.ledc_timer = LEDC_TIMER_0;
     config.pin_d0 = Y2_GPIO_NUM;
@@ -283,7 +279,7 @@ void takeImage(){
 
       // Text overlay
 
-        String txtOverlay = "Payload Squad" + String(pictureNumber); 
+        String txtOverlay = "Payload Squad " + String(pictureNumber); 
         const char* txtOverlay_char = txtOverlay.c_str();
 
         dl_matrix3du_t *image_matrix = dl_matrix3du_alloc(1, fb->width, fb->height, 3);
@@ -388,7 +384,7 @@ void setup() {
 
   initSDCARD();
   initFS();
-  initCAMERA();
+  initCAMERA(config, s);
   initEEPROM();
 
   Serial.printf("Internal heap %d, internal Free Heap %d", ESP.getHeapSize(), ESP.getFreeHeap());
@@ -403,23 +399,10 @@ void setup() {
   takeImage();
   takeImage();
   takeImage();
-
-  // Delete initialization photos
-  deleteFile(SD_MMC, "/null.jpg");
-  printEvent("Ok!");
 }
 
 void loop() {
   
-}
-
-void deleteFile(fs::FS &fs, const char * path) {
-  Serial.printf("Deleting file: %s\n", path);
-  if(fs.remove(path)) {
-    printEvent("File deleted.");
-  } else {
-    printEvent("Delete failed.");
-  }
 }
 
 void color_2_gray(sensor_t * s) {
@@ -468,12 +451,8 @@ void remove_filt(sensor_t * s) {
 
 void take_picture() {
   printEvent("Take picture.");
-  String pic1 = "/picture";
-  pic1 += pictureNumber;
-  pic1 += ".jpg";
   takeImage();
   printEvent("Ok!");
-  pictureNumber++;
 }
 
 
