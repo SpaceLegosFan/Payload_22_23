@@ -3,12 +3,6 @@ NDRT Payload 2022-2023
 **ARDUINO**
 */
 
-// Pins for full-scale lead screw (color of the heat shrinks)
-// B2 YELLLOW
-// A2 WHITE
-// A1 BLUE
-// B1 RED
-
 #include <Arduino.h>
 #include <Wire.h>
 #include <AccelStepper.h>
@@ -36,10 +30,6 @@ NDRT Payload 2022-2023
 #define ACCELERATION_LAUNCH_TOLERANCE 30
 
 void appendFile(fs::FS &fs, const char *path, const char *message);
-
-char inbyte = 0;                 // Received byte
-char buf[260];                   // Incoming data buffer
-int buflen = 0;                  // Length of buffered ata
 
 TwoWire I2CSensors = TwoWire(0);
 TwoWire I2CSensors2 = TwoWire(1);
@@ -80,6 +70,10 @@ typedef struct struct_message{
 } struct_message;
 struct_message myData;
 esp_now_peer_info_t peerInfo;
+
+  char inbyte = 0;                 // Received byte
+  char buf[260];                   // Incoming data buffer
+  int buflen = 0;                  // Length of buffered ata
 
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print("\r\nLast Packet Send Status:\t");
@@ -180,7 +174,7 @@ void setup() {
   printEvent("Setup done!");
   delay(500);
   printEvent("Standing By for Launch.");
-
+  
   updateLaunch();
   while (!checkLaunch())
   {
@@ -241,24 +235,29 @@ void setup() {
 
 // standby for RF commands
 void loop() {
-  while (Serial.available() > 0) // Check for an incoming byte on the serial port
-  {
+  /*
+  while (Serial.available() > 0) { // Check for an incoming byte on the serial port
+  
     inbyte = Serial.read();      // Get the byte
-    if (inbyte == '\n')          // Check for end of line
-    {
-      interpretRadioString(buf);
+    if (inbyte == '\n') {         // Check for end of line
+      String message(buf);
+      interpretRadioString(message);
+      Serial.println("Done with all radio commands.");
       buflen = 0;
       break;
     }
-    else if (inbyte > 31 && buflen < 260)  // Only record printable characters
-    {
+    else if (inbyte > 31 && buflen < 260) { // Only record printable characters
       buf[buflen++] = inbyte;
       buf[buflen] = 0;
     }
-  }  
-  //interpretRadioString("XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3.");
+  } 
+  */
+
+  delay(10000);
+  Serial.println("Executing Radio Commands");
+  interpretRadioString("XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3.");
   Serial.println("Done with all radio commands.");
-  return;
+  exit();
 }
 
 void recvMsg(uint8_t *data, size_t len) {
@@ -545,22 +544,36 @@ void printEvent(const char *event) {
 
 void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3."
   server.end();
- WiFi.disconnect();
+  WiFi.disconnect();
   message.toUpperCase();
-  message = message.substring(6);
-  int numberCommands = message.length() / 3;
-  int commands[numberCommands];
-  for (int i = 0; i < numberCommands; i++)
-  {
-    message = message.substring(1);
-    commands[i] = message.substring(1, 2).toInt();
-    message = message.substring(2);
+  int numberCommands = 0;
+  int commands[100];
+  while(1){
+    int location = findFirstRadioCommand(message);
+    if(location == -1) break;
+    commands[numberCommands] = message.substring(location+1, location+2).toInt();
+    numberCommands++;
+    message.remove(location, 3);
   }
   for (int i = 0; i < numberCommands; i++)
   {
     executeRadioCommand(commands[i]);
     delay(5000);
   }
+}
+
+int findFirstRadioCommand(String message){
+  int location = -1;
+  for(int i = 1; i <= 8; i++){
+    char letter = i + 64;
+    String command = "";
+    command += letter;
+    command += i;
+    int potentialLocation = message.indexOf(command);
+    if(potentialLocation != -1 && (location == -1 || potentialLocation < location))
+      location = potentialLocation;
+  }
+  return location;
 }
 
 void executeRadioCommand(int command) {
