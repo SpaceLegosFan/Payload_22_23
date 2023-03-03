@@ -219,7 +219,7 @@ void setup() {
 
   // deploy vertically
   printEvent("Deploying vertically.");
-  spinCameraStepper(30);
+  spinCameraStepper(-60);
 
   printEvent("Finished deploying vertically.");
   printEvent("Standing By for Camera commands...");
@@ -534,12 +534,11 @@ void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B
   }
   for (int i = 0; i < numberCommands; i++) {
     executeRadioCommand(commands[i]);
-    delay(5000);
+    delay(3000);
   }
 }
 
 int findFirstRadioCommand(String message){
-  Serial.println("In findFirstRadio");
   int location = -1;
   String possibleCommands[8] = {"A1", "B2", "C3", "D4", "E5", "F6", "G7", "H8"};
   for(int i = 0; i < 8; i++){
@@ -563,6 +562,7 @@ void executeRadioCommand(int command) {
     break;
   case 3:
     sendData(3);
+    delay(10000);
     break;
   case 4:
     sendData(4);
