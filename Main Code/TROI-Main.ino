@@ -37,6 +37,10 @@ NDRT Payload 2022-2023
 
 void appendFile(fs::FS &fs, const char *path, const char *message);
 
+char inbyte = 0;                 // Received byte
+char buf[260];                   // Incoming data buffer
+int buflen = 0;                  // Length of buffered ata
+
 TwoWire I2CSensors = TwoWire(0);
 TwoWire I2CSensors2 = TwoWire(1);
 Adafruit_BNO055 bno = Adafruit_BNO055(-1, BNO055_ADDRESS_A, &I2CSensors);
@@ -83,7 +87,7 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(4800);
 
   // Wifi setup. Accessible at "<IP Address>/webserial" in browser
   WiFi.mode(WIFI_STA);
@@ -237,8 +241,22 @@ void setup() {
 
 // standby for RF commands
 void loop() {
-  // Below is hard-coding in a sample radio message from NASA. Since only one radio message here, ends code by returning.
-  interpretRadioString("XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3.");
+  while (Serial.available() > 0) // Check for an incoming byte on the serial port
+  {
+    inbyte = Serial.read();      // Get the byte
+    if (inbyte == '\n')          // Check for end of line
+    {
+      interpretRadioString(buf);
+      buflen = 0;
+      break;
+    }
+    else if (inbyte > 31 && buflen < 260)  // Only record printable characters
+    {
+      buf[buflen++] = inbyte;
+      buf[buflen] = 0;
+    }
+  }  
+  //interpretRadioString("XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3.");
   Serial.println("Done with all radio commands.");
   return;
 }
