@@ -140,7 +140,7 @@ void initFS(){
   }
 }
   
-  void initSDCARD(){
+void initSDCARD(){
 
     //if(!SD_MMC.begin()){
     if(!SD_MMC.begin("/sdcard", true)){          
@@ -174,7 +174,7 @@ void initEEPROM(){
 
 }
   
-  void initCAMERA(camera_config_t config, sensor_t * s){
+void initCAMERA(camera_config_t config, sensor_t * s){
 
     config.ledc_channel = LEDC_CHANNEL_0;
     config.ledc_timer = LEDC_TIMER_0;
