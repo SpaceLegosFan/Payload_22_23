@@ -88,12 +88,10 @@ void setup() {
   // Wifi setup. Accessible at "<IP Address>/webserial" in browser
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
-  if (WiFi.waitForConnectResult() != WL_CONNECTED)
-  {
+  if (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.println("WiFi Primary Failed!");
     WiFi.begin(ssid_backup, password_backup);
-    if (WiFi.waitForConnectResult() != WL_CONNECTED)
-    {
+    if (WiFi.waitForConnectResult() != WL_CONNECTED) {
       Serial.println("WiFi backup failed!");
     }
     else
@@ -107,8 +105,7 @@ void setup() {
   Serial.println("WiFi setup finished.");
 
   // SD Card
-  if (!SD.begin())
-  {
+  if (!SD.begin()) {
     Serial.println("SD Initialization failed!");
   }
   appendFile(SD, "/payload.txt", "\n\n\nOutput file for payload systems:\n");
@@ -125,20 +122,17 @@ void setup() {
   Serial.println("Initialized both I2CSensors and Wire.");
 
   // RTC Clock
-  if (!rtc.begin(&I2CSensors))
-  {
+  if (!rtc.begin(&I2CSensors)) {
     Serial.println("Couldn't find RTC");
   }
   printEvent("RTC Clock Initialized.");
 
-  if (!bno.begin())
-  {
+  if (!bno.begin()) {
     printEvent("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
     return;
   }
   printEvent("BNO is initialized.");
-  if (!bno2.begin())
-  {
+  if (!bno2.begin()) {
     printEvent("Ooops, no BNO055-2 detected ... Check your wiring or I2C ADDR!");
     return;
   }
@@ -147,8 +141,7 @@ void setup() {
   bno2.setExtCrystalUse(true);
 
   // ESP-NOW setup
-  if (esp_now_init() != ESP_OK)
-  {
+  if (esp_now_init() != ESP_OK) {
     printEvent("Error initializing ESP-NOW.");
     return;
   }
@@ -158,8 +151,7 @@ void setup() {
   memcpy(peerInfo.peer_addr, broadcastAddress, 6);
   peerInfo.channel = 0;
   peerInfo.encrypt = false;
-  if (esp_now_add_peer(&peerInfo) != ESP_OK)
-  {
+  if (esp_now_add_peer(&peerInfo) != ESP_OK) {
     printEvent("Failed to add peer.");
     return;
   }
@@ -180,8 +172,7 @@ void setup() {
   /*
   
   updateLaunch();
-  while (!checkLaunch())
-  {
+  while (!checkLaunch()) {
     delay(100);
     updateLaunch();
     checkSerialMessage();
@@ -189,8 +180,7 @@ void setup() {
   printEvent("We Have Launched!");
 
   // Wait a minimum of 60 seconds before standing by for landing. Record flight data during this.
-  for (int i = 0; i < 10 * 60; i++)
-  {
+  for (int i = 0; i < 10 * 60; i++) {
     if (i % 100 == 0)
       Serial.println("10 seconds have gone by");
     recordFlightData();
@@ -200,8 +190,7 @@ void setup() {
   // wait in standby mode and loop until landed
   printEvent("Standing By for Landing");
   updateLanding();
-  while (!checkLanding())
-  {
+  while (!checkLanding()) {
     delay(100);
     updateLanding();
   }
@@ -270,36 +259,30 @@ void loop() {
 void recvMsg(uint8_t *data, size_t len) {
   printEvent("Received WebSerial Data...");
   String d = "";
-  for (int i = 0; i < len; i++)
-  {
+  for (int i = 0; i < len; i++) {
     d += char(data[i]);
   }
   WebSerialPro.println(d);
   Serial.println(d);
   d.toLowerCase();
-  if (d == "run motor")
-  {
+  if (d == "run motor") {
     serialMessage = d;
   }
   else if (d == "change direction")
     changeStepperDirection();
-  else if (d.indexOf("radio string") != -1)
-  {
+  else if (d.indexOf("radio string") != -1) {
     serialMessage = d;
   }
-  else if (d.indexOf("camera turn") != -1)
-  {
+  else if (d.indexOf("camera turn") != -1) {
     serialMessage = d;
   }
-  else if (d.indexOf("radio command") != -1)
-  {
+  else if (d.indexOf("radio command") != -1) {
     int command = d.substring(d.indexOf("=") + 2).toInt();
     executeRadioCommand(command);
     WebSerialPro.print("The radio command is: ");
     WebSerialPro.println(command);
   }
-  else if (d == "print steps")
-  {
+  else if (d == "print steps") {
     WebSerialPro.println(num_deployment_LeadScrew_steps);
   }
   else if (d.indexOf("steps =") != -1)
@@ -310,8 +293,7 @@ void recvMsg(uint8_t *data, size_t len) {
   Updates the acceleration vectors in the acceleration queue to be used by the checkLaunch() function to check for a launch
 */
 void updateLaunch() {
-  if (size >= 2)
-  {
+  if (size >= 2) {
     accelerationQueue[0] = accelerationQueue[1];
     size--;
   }
@@ -325,8 +307,7 @@ void updateLaunch() {
 */
 bool checkLaunch() {
   float accelAverage = 0;
-  for (int i = 0; i < size; i++)
-  {
+  for (int i = 0; i < size; i++) {
     accelAverage += accelerationQueue[i].magnitude();
   }
   accelAverage /= size;
@@ -338,10 +319,8 @@ bool checkLaunch() {
   Updates the acceleration and gyro vectors in their respective queues to be used by the checkLanding() function to check for landing.
 */
 void updateLanding() {
-  if (size >= 10)
-  {
-    for (int i = 0; i < 9; i++)
-    {
+  if (size >= 10) {
+    for (int i = 0; i < 9; i++) {
       accelerationQueue[i] = accelerationQueue[i + 1];
       gyroQueue[i] = gyroQueue[i + 1];
     }
@@ -359,8 +338,7 @@ void updateLanding() {
 bool checkLanding() {
   float accelAverage = 0;
   float gyroAverage = 0;
-  for (int i = 0; i < size; i++)
-  {
+  for (int i = 0; i < size; i++) {
     accelAverage += accelerationQueue[i].magnitude();
     gyroAverage += gyroQueue[i].magnitude();
   }
@@ -379,8 +357,7 @@ void recordFlightData() {
   updateLanding();
   float accelAverage = 0;
   float gyroAverage = 0;
-  for (int i = 0; i < size; i++)
-  {
+  for (int i = 0; i < size; i++) {
     accelAverage += accelerationQueue[i].magnitude();
     gyroAverage += gyroQueue[i].magnitude();
   }
@@ -391,21 +368,17 @@ void recordFlightData() {
 }
 
 void checkSerialMessage() {
-  if (serialMessage != "")
-  {
-    if (serialMessage == "run motor")
-    {
+  if (serialMessage != "") {
+    if (serialMessage == "run motor") {
       leadScrewRun();
     }
-    else if (serialMessage.indexOf("radio string") != -1)
-    {
+    else if (serialMessage.indexOf("radio string") != -1) {
       String radioMessage = serialMessage.substring(serialMessage.indexOf("=") + 2);
       WebSerialPro.print("The radio message is: ");
       WebSerialPro.println(radioMessage);
       interpretRadioString(radioMessage);
     }
-    else if (serialMessage.indexOf("camera turn") != -1)
-    {
+    else if (serialMessage.indexOf("camera turn") != -1) {
       int angle = serialMessage.substring(serialMessage.indexOf("=") + 2).toInt();
       WebSerialPro.print("The camera motor will turn ");
       WebSerialPro.print(angle);
@@ -420,8 +393,7 @@ bool checkRoll() {
   int countCheck = 0;
   float currentRoll = 0;
   float prevRoll = 0;
-  while (1)
-  {
+  while (1) {
     prevRoll = currentRoll;
     imu::Quaternion q = bno.getQuat();
     float yy = q.y() * q.y();
@@ -439,27 +411,22 @@ bool checkRoll() {
     storeData("prevRoll", prevRoll);
 
     // Within .5 radians of the two BNO055 roll values
-    if (roll2 - .5 < roll && roll < roll2 + .5)
-    {
+    if (roll2 - .5 < roll && roll < roll2 + .5) {
       printEvent("Both IMUs have same data (within 0.5 radians).");
       // Within 10 degrees of the two roll values on the first BNO055
-      if (prevRoll - 10 < currentRoll && currentRoll < prevRoll + 10)
-      {
+      if (prevRoll - 10 < currentRoll && currentRoll < prevRoll + 10) {
         printEvent("prevRoll is whithin 10 degrees of currentRoll.");
         return true;
       }
     }
-    else if (countCheck == 5)
-    { // If a value can not come to a consesus within 5 polls, override the auxillary mechanism
+    else if (countCheck == 5) { // If a value can not come to a consesus within 5 polls, override the auxillary mechanism
       storeEvent("Both IMU have different data.");
-      if (prevRoll - 10 < currentRoll && currentRoll < prevRoll + 10)
-      {
+      if (prevRoll - 10 < currentRoll && currentRoll < prevRoll + 10) {
         storeEvent("prevRoll is whithin 10 degrees of currentRoll.");
         return true;
       }
     }
-    else if (countCheck != 5)
-    {
+    else if (countCheck != 5) {
       countCheck++;
     }
     delay(3000);
@@ -472,37 +439,31 @@ void changeStepperDirection() {
 
 void leadScrewRun() {
   LeadScrewStepper.move(num_deployment_LeadScrew_steps);
-  while (LeadScrewStepper.run())
-  {
+  while (LeadScrewStepper.run()) {
   }
 }
 
 void spinCameraStepper(int angle) {
-  if (cameraAngle + angle > 180)
-  {
-    angle = 360 - angle;
+  if (cameraAngle + angle > 180) {
+    angle = angle - 360;
   }
-  else if (cameraAngle + angle < -180)
-  {
+  else if (cameraAngle + angle < -180) {
     angle = angle + 360;
   }
   int steps = angle / 1.8;
   cameraAngle += steps * 1.8;
   CameraStepper.move(steps);
-  while (CameraStepper.run())
-  {
+  while (CameraStepper.run()) {
   }
 }
 
 void appendFile(fs::FS &fs, const char *path, const char *message) {
   File file = fs.open(path, FILE_APPEND);
-  if (!file)
-  {
+  if (!file) {
     Serial.println("Failed to open file for appending");
     return;
   }
-  if (!file.print(message))
-  {
+  if (!file.print(message)) {
     Serial.println("Append failed");
   }
   file.close();
@@ -564,8 +525,7 @@ void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B
     numberCommands++;
     message.remove(location, 2);
   }
-  for (int i = 0; i < numberCommands; i++)
-  {
+  for (int i = 0; i < numberCommands; i++) {
     executeRadioCommand(commands[i]);
     delay(5000);
   }
@@ -587,8 +547,7 @@ void executeRadioCommand(int command) {
   char string[50] = "I am executing command ";
   string[strlen(string)] = (char)command + 48;
   printEvent(string);
-  switch (command)
-  {
+  switch (command) {
   case 1:
     spinCameraStepper(60);
     break;
