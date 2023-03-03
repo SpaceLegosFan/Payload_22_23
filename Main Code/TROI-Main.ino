@@ -81,7 +81,7 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 }
 
 void setup() {
-  Serial.begin(4800);
+  Serial.begin(38400);
 
   // Wifi setup. Accessible at "<IP Address>/webserial" in browser
   WiFi.mode(WIFI_STA);
