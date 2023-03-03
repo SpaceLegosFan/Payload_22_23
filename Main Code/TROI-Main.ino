@@ -243,9 +243,11 @@ void setup() {
 void loop() {
   while(Serial.available()>0){
     if(beginTime == -1) beginTime = millis();
-    char letter = Serial.read();
-    message += letter;
-    //Serial.println(message);
+    int index = Serial.read();
+    if((index > 48 && index < 57) || (index > 64 && index < 73)){
+      char letter = index;
+      message += letter;
+    }
   }
   if(beginTime != -1 && millis() - beginTime > 3000){
     Serial.println("Executing Radio Commands");
@@ -253,7 +255,7 @@ void loop() {
     Serial.println("Done with all radio commands.");
     message = "";
     beginTime = -1;
-    exit(0);
+    //exit(0);
   }
   
 
@@ -548,11 +550,13 @@ void printEvent(const char *event) {
 }
 
 void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3."
+  Serial.println("Interpreting radio string");
   server.end();
   WiFi.disconnect();
   message.toUpperCase();
   int numberCommands = 0;
   int commands[100];
+  Serial.println("here");
   while(1){
     int location = findFirstRadioCommand(message);
     if(location == -1) break;
@@ -568,13 +572,11 @@ void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B
 }
 
 int findFirstRadioCommand(String message){
+  Serial.println("In findFirstRadio");
   int location = -1;
-  for(int i = 1; i <= 8; i++){
-    char letter = i + 64;
-    String command = "";
-    command += letter;
-    command += i;
-    int potentialLocation = message.indexOf(command);
+  String possibleCommands[8] = {"A1", "B2", "C3", "D4", "E5", "F6", "G7", "H8"};
+  for(int i = 0; i < 8; i++){
+    int potentialLocation = message.indexOf(possibleCommands[i]);
     if(potentialLocation != -1 && (location == -1 || potentialLocation < location))
       location = potentialLocation;
   }
