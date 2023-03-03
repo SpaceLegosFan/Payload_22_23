@@ -562,7 +562,7 @@ void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B
     if(location == -1) break;
     commands[numberCommands] = message.substring(location+1, location+2).toInt();
     numberCommands++;
-    message.remove(location, 3);
+    message.remove(location, 2);
   }
   for (int i = 0; i < numberCommands; i++)
   {
