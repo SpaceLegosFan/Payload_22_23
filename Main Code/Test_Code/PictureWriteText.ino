@@ -1,7 +1,59 @@
-// You need to install ESP32 1.0.6, not the current 2.0.x version. You also need to manually install the LittleFS library.
+/*
+ _______  _______  __   __  _______    _______  __   __  _______  ______    ___      _______  __   __ 
+|       ||       ||  |_|  ||       |  |       ||  | |  ||       ||    _ |  |   |    |   _   ||  | |  |
+|_     _||    ___||       ||_     _|  |   _   ||  |_|  ||    ___||   | ||  |   |    |  |_|  ||  |_|  |
+  |   |  |   |___ |       |  |   |    |  | |  ||       ||   |___ |   |_||_ |   |    |       ||       |
+  |   |  |    ___| |     |   |   |    |  |_|  ||       ||    ___||    __  ||   |___ |       ||_     _|
+  |   |  |   |___ |   _   |  |   |    |       | |     | |   |___ |   |  | ||       ||   _   |  |   |  
+  |___|  |_______||__| |__|  |___|    |_______|  |___|  |_______||___|  |_||_______||__| |__|  |___|  
+
+ Name:     ESP32 Cam Text Overlay
+ Date:     FEB 2022
+ Author:   Flavio L Puhl Jr <flavio_puhl@hotmail.com> 
+ GIT:      
+ About:    Example of text overlay in a picture taken by ESP32 Cam
+ 
+Update comments                                      
++-----------------------------------------------------+------------------+---------------+
+|               Feature added                         |     Version      |      Date     |
++-----------------------------------------------------+------------------+---------------+
+| Initial Release                                     |      1.0.0       |     FEB/22    |
+|                                                     |                  |               |
+|                                                     |                  |               |
++-----------------------------------------------------+------------------+---------------+
+
+
+Library versions                                       
++-----------------------------------------+------------------+-------------------------- +
+|       Library                           |     Version      |          Creator          |
++-----------------------------------------+------------------+-------------------------- +
+|	LittleFS_esp32                          |     @^1.0.6      |      lorol                |
++-----------------------------------------+------------------+-------------------------- +
+
+Upload settings 
++----------------------------------------------------------------------------------------+
+| PLATFORM: Espressif 32 (3.3.0) > AI Thinker ESP32-CAM                                  |
+| HARDWARE: ESP32 240MHz, 320KB RAM, 4MB Flash                                           |
+| PACKAGES:                                                                              |
+|  - framework-arduinoespressif32 3.10006.210326 (1.0.6)                                 |
+|  - tool-esptoolpy 1.30100.210531 (3.1.0)                                               |
+|  - toolchain-xtensa32 2.50200.97 (5.2.0)                                               |
+|                                                                                        |
+| RAM:   [=         ]   9.2% (used 30220 bytes from 327680 bytes)                        |
+| Flash: [==        ]  15.1% (used 475610 bytes from 3145728 bytes)                      |
++----------------------------------------------------------------------------------------+
+
+*/
+
+/*+--------------------------------------------------------------------------------------+
+ *| Libraries                                                                            |
+ *+--------------------------------------------------------------------------------------+ */
+
+// Libraries built into IDE
+
 
 #include "esp_camera.h"
-#include <Arduino.h>
+#include "Arduino.h"
 
 #include "img_converters.h"                                 // Txt overlay testing
 #include "esp_timer.h"
@@ -16,17 +68,13 @@
 #include "driver/rtc_io.h"
 #include <EEPROM.h>                                         // read and write from flash memory
 #include <SPIFFS.h>
+#include "LITTLEFS.h"
+#include "FS.h"
 
-#define USE_LittleFS
 
-#include <FS.h>
-#ifdef USE_LittleFS
-  #define SPIFFS LITTLEFS
-  #include <LITTLEFS.h> 
-#else
-  #include <SPIFFS.h>
-#endif 
-
+/*+--------------------------------------------------------------------------------------+
+ *| Constants declaration                                                                |
+ *+--------------------------------------------------------------------------------------+ */
 
 // define the number of bytes you want to access
 #define EEPROM_SIZE 512
@@ -37,7 +85,6 @@
 #define XCLK_GPIO_NUM      0
 #define SIOD_GPIO_NUM     26
 #define SIOC_GPIO_NUM     27
-
 #define Y9_GPIO_NUM       35
 #define Y8_GPIO_NUM       34
 #define Y7_GPIO_NUM       39
@@ -50,16 +97,24 @@
 #define HREF_GPIO_NUM     23
 #define PCLK_GPIO_NUM     22
 
-#define FILE_PHOTO_FS "/data/txtOvl_photo.jpg"   
+#define FILE_PHOTO_FS "/data/txtOvl_photo.jpg"                // Photo File Name to save in File System
 
 boolean takeNewPhoto = true;
 bool taskCompleted = false;
 
 
+/*+--------------------------------------------------------------------------------------+
+ *| Global Variables                                                                     |
+ *+--------------------------------------------------------------------------------------+ */
+
   
-  String fileName = "empty";                                  
+  String fileName = "empty";                                  // filename that will be sent on MQTT
 
  
+/*+--------------------------------------------------------------------------------------+
+ *| Text Overlay                                                                         |
+ *+--------------------------------------------------------------------------------------+ */
+
 static void rgb_print(dl_matrix3du_t *image_matrix, uint32_t color, const char * str){
     fb_data_t fb;
     fb.width = image_matrix->w;
@@ -72,6 +127,10 @@ static void rgb_print(dl_matrix3du_t *image_matrix, uint32_t color, const char *
 }
 
 
+/*+--------------------------------------------------------------------------------------+
+ *| Initiate File System                                                                 |
+ *+--------------------------------------------------------------------------------------+ */
+
 void initFS(){
 
   if (!SPIFFS.begin(true)) {
@@ -82,11 +141,15 @@ void initFS(){
       delay(500);
   }
 }
+
+/*+--------------------------------------------------------------------------------------+
+ *| Initiate SDCARD                                                                      |
+ *+--------------------------------------------------------------------------------------+ */
   
   void initSDCARD(){
 
     //if(!SD_MMC.begin()){
-    if(!SD_MMC.begin("/sdcard", true)){          
+    if(!SD_MMC.begin("/sdcard", true)){               // note: ("/sdcard", true) = 1 wire - see: https://www.reddit.com/r/esp32/comments/d71es9/a_breakdown_of_my_experience_trying_to_talk_to_an/
       log_i("SD Card Mount Failed");
       return;
     } else {
@@ -105,6 +168,9 @@ void initFS(){
 
   }
 
+/*+--------------------------------------------------------------------------------------+
+ *| Initiate EEPROM                                                                      |
+ *+--------------------------------------------------------------------------------------+ */
   
 void initEEPROM(){
 
@@ -116,10 +182,15 @@ void initEEPROM(){
     }
 
 }
+/*+--------------------------------------------------------------------------------------+
+ *| Initiate CAMERA                                                            |
+ *+--------------------------------------------------------------------------------------+ */
   
   void initCAMERA(){
 
     camera_config_t config;
+  
+
     config.ledc_channel = LEDC_CHANNEL_0;
     config.ledc_timer = LEDC_TIMER_0;
     config.pin_d0 = Y2_GPIO_NUM;
@@ -138,10 +209,10 @@ void initEEPROM(){
     config.pin_sscb_scl = SIOC_GPIO_NUM;
     config.pin_pwdn = PWDN_GPIO_NUM;
     config.pin_reset = RESET_GPIO_NUM;
-    config.xclk_freq_hz = 10000000;                            
-    config.pixel_format = PIXFORMAT_JPEG;                      
+    config.xclk_freq_hz = 12000000;
+    config.pixel_format = PIXFORMAT_JPEG; //YUV422,GRAYSCALE,RGB565,JPEG
     
-    if(psramFound()){                                           
+    if(psramFound()){                                           // https://github.com/espressif/esp-who/issues/83
       log_i("PSRAM found");
       //config.frame_size = FRAMESIZE_UXGA; 						        // FRAMESIZE_ + QVGA  ( 320 x 240 )
       config.frame_size = FRAMESIZE_VGA; 						            // FRAMESIZE_ + QVGA  ( 320 x 240 ) 
@@ -182,20 +253,22 @@ void initEEPROM(){
   }
 
 
-
+/*+--------------------------------------------------------------------------------------+
+ *| Take a picture, save to SD Card, save to SPPIFFS, Send to firebase                   |
+ *+--------------------------------------------------------------------------------------+ */
  
 void takeImage(){
   
-  log_i("Taking a photo...");
+Serial.println("Taking a photo...");
   
   int pictureNumber = 0;
    
-  camera_fb_t * fb = NULL;                                        
+  camera_fb_t * fb = NULL;                                            // Reset camera pointer
   
-  bool CamCaptureSucess = true;                                      
+  bool CamCaptureSucess = true;                                       // Boolean indicating if the picture has been taken correctly
   bool CamCaptureSize = true;
 
-  fb = esp_camera_fb_get();                                          
+  fb = esp_camera_fb_get();                                           // Take Picture with Camera  
     if(!fb) {
       CamCaptureSucess = false;
         log_i("Camera capture failed...");
@@ -204,25 +277,25 @@ void takeImage(){
       CamCaptureSucess = true;
         log_i("Camera capture success...");
 
-      EEPROM.get(8,pictureNumber);                                            
+      EEPROM.get(8,pictureNumber);                                            // Recover picture counter from EEPROM
         log_i("Current picture number counter : %i",pictureNumber);
         
         pictureNumber++;                                                    
         EEPROM.put(8,pictureNumber);                                                                                                            
         EEPROM.commit();                                                                                                                                        
-        EEPROM.get(8,pictureNumber);                                          
+        EEPROM.get(8,pictureNumber);                                          // Recover new picture counter and use it to name the file on SD CARD
           log_i("New picture number counter : %i",pictureNumber);
 
     } 
 
-      // Text overlay
+      // Text overlay START
 
-        String txtOverlay = "Payload Squad" + String(pictureNumber); 
+        String txtOverlay = "ESP32 Cam Text Overlay example - " + String(pictureNumber); 
         const char* txtOverlay_char = txtOverlay.c_str();
 
         dl_matrix3du_t *image_matrix = dl_matrix3du_alloc(1, fb->width, fb->height, 3);
         fmt2rgb888(fb->buf, fb->len, fb->format, image_matrix->item);  
-        rgb_print(image_matrix, 0x00000000, txtOverlay_char);            
+        rgb_print(image_matrix, 0x00000000, txtOverlay_char);               // https://www.littlewebhut.com/css/value_color/
 
         size_t _jpg_buf_len = 0;
         uint8_t * _jpg_buf = NULL;
@@ -258,7 +331,7 @@ void takeImage(){
           log_i("File Size: %i bytes | read trial: %i of 20", pic_sz, t);
           t++;
         } while (pic_sz == 0 && t <= 20);
-          if(t >= 20){ESP.restart();}                                
+          if(t >= 20){ESP.restart();}                                 // Addedd due to error "fmt2jpg(): JPG buffer malloc failed" (not enough chunk of RAM to store data)
     }
 
     fileFS.close();
@@ -310,7 +383,9 @@ void takeImage(){
 }
 
 
-
+/*+--------------------------------------------------------------------------------------+
+ *| Setup                                                                                |
+ *+--------------------------------------------------------------------------------------+ */
  
 void setup() {
 
@@ -324,8 +399,8 @@ void setup() {
   initCAMERA();
   initEEPROM();
 
-  log_i("Internal heap %d, internal Free Heap %d", ESP.getHeapSize(), ESP.getFreeHeap());
-  log_i("SPIRam heap %d, SPIRam Free Heap %d", ESP.getPsramSize(), ESP.getFreePsram());
+  log_i("Internal Total heap %d, internal Free Heap %d", ESP.getHeapSize(), ESP.getFreeHeap());
+  log_i("SPIRam Total heap %d, SPIRam Free Heap %d", ESP.getPsramSize(), ESP.getFreePsram());
   log_i("ChipRevision %d, Cpu Freq %d, SDK Version %s", ESP.getChipRevision(), ESP.getCpuFreqMHz(), ESP.getSdkVersion());
   log_i("Flash Size %d, Flash Speed %d", ESP.getFlashChipSize(), ESP.getFlashChipSpeed());
 
@@ -333,6 +408,11 @@ void setup() {
 
  
 }
+
+
+/*+--------------------------------------------------------------------------------------+
+ *| main loop                                                                            |
+ *+--------------------------------------------------------------------------------------+ */
 
 void loop() {
   
