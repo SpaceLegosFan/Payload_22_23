@@ -257,7 +257,7 @@ void loop() {
   Serial.println("Executing Radio Commands");
   interpretRadioString("XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3.");
   Serial.println("Done with all radio commands.");
-  exit();
+  exit(0);
 }
 
 void recvMsg(uint8_t *data, size_t len) {
