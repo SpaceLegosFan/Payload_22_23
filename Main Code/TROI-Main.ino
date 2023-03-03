@@ -23,11 +23,12 @@ NDRT Payload 2022-2023
 #define motorInterfaceType 1
 #define leadDIR 12
 #define leadSTEP 14
-#define cameraDIR 33  // 33
+#define cameraDIR 26  // 33
 #define cameraSTEP 25 // 25
 #define ACCELERATION_LAND_TOLERANCE .3
 #define GYRO_LAND_TOLERANCE 5
 #define ACCELERATION_LAUNCH_TOLERANCE 30
+#define DEPLOYSTEPS 4800
 
 void appendFile(fs::FS &fs, const char *path, const char *message);
 
@@ -46,10 +47,10 @@ AccelStepper CameraStepper(motorInterfaceType, cameraSTEP, cameraDIR);
 float cameraAngle = 0.0;
 
 // Motor Values
-float travel_distance = 8.6;                   // Ask Spencer or https://drive.google.com/drive/u/0/folders/1Yd59MVs0kGjNgtfuYpVg5CDFZwnHGlRj.
+float travel_distance = 7.5;                   // Ask Spencer or https://drive.google.com/drive/u/0/folders/1Yd59MVs0kGjNgtfuYpVg5CDFZwnHGlRj.
 float num_steps = 400;                         // Steps per rotation; this would be if we are half-stepping (units: steps/revolution).
 float travel_distance_per_full_step = 0.00125; // Inches per step.
-float num_deployment_LeadScrew_steps = travel_distance / travel_distance_per_full_step;
+float num_deployment_LeadScrew_steps = DEPLOYSTEPS; //travel_distance / travel_distance_per_full_step;
 
 // I2C RTC Clock Interface
 RTC_DS3231 rtc;
@@ -169,8 +170,6 @@ void setup() {
   delay(500);
   printEvent("Standing By for Launch.");
   
-  /*
-  
   updateLaunch();
   while (!checkLaunch()) {
     delay(100);
@@ -221,8 +220,6 @@ void setup() {
   // deploy vertically
   printEvent("Deploying vertically.");
   spinCameraStepper(30);
-  
-  */
 
   printEvent("Finished deploying vertically.");
   printEvent("Standing By for Camera commands...");
@@ -268,8 +265,15 @@ void recvMsg(uint8_t *data, size_t len) {
   if (d == "run motor") {
     serialMessage = d;
   }
+  else if(d == "reset"){
+    num_deployment_LeadScrew_steps = DEPLOYSTEPS;
+  }
   else if (d == "change direction")
     changeStepperDirection();
+  else if(d == "reset motor"){
+    num_deployment_LeadScrew_steps = -5900;
+    serialMessage = "run motor";
+  }
   else if (d.indexOf("radio string") != -1) {
     serialMessage = d;
   }
@@ -369,6 +373,7 @@ void recordFlightData() {
 
 void checkSerialMessage() {
   if (serialMessage != "") {
+    Serial.println("checkSerialMessage is running");
     if (serialMessage == "run motor") {
       leadScrewRun();
     }
@@ -450,8 +455,10 @@ void spinCameraStepper(int angle) {
   else if (cameraAngle + angle < -180) {
     angle = angle + 360;
   }
+  Serial.println(angle);
   int steps = angle / 1.8;
   cameraAngle += steps * 1.8;
+  Serial.println(steps);
   CameraStepper.move(steps);
   while (CameraStepper.run()) {
   }
