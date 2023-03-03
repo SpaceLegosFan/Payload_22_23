@@ -73,9 +73,27 @@ String string = "";
 
 // Time before the picture is taken each time the "take picture" command is called
 const TickType_t stut = 3000 / portTICK_PERIOD_MS; // Change this to change the time, the whole number corresponds with milliseconds
-                              
-void executeRadioCommand(int command) {
-  switch(command) {
+
+// This is the TRANSMITTER (ESP32-Main) MAC address--change this!
+uint8_t broadcastAddress[] = {0x94, 0xE6, 0x86, 0xA7, 0x7E, 0x88};
+
+//  Structure example to send data
+//  Must match the sender structure
+typedef struct struct_message {
+    char timestamp[32];
+    int command;
+} struct_message;
+
+// Create a struct_message called myData
+struct_message myData;
+
+// callback function that will be executed when data is received
+void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
+  memcpy(&myData, incomingData, sizeof(myData));
+
+  Serial.println(myData.command);
+
+  switch(myData.command) {
     case 3:
       take_picture();
       break;
@@ -95,7 +113,9 @@ void executeRadioCommand(int command) {
       remove_filt(s);
       break;
   }
+
 }
+
  
 static void rgb_print(dl_matrix3du_t *image_matrix, uint32_t color, const char * str){
     fb_data_t fb;
