@@ -71,9 +71,11 @@ typedef struct struct_message{
 struct_message myData;
 esp_now_peer_info_t peerInfo;
 
-  char inbyte = 0;                 // Received byte
-  char buf[260];                   // Incoming data buffer
-  int buflen = 0;                  // Length of buffered ata
+char inbyte = 0;                 // Received byte
+char buf[260];                   // Incoming data buffer
+int buflen = 0;                  // Length of buffered ata
+String message = "";
+int beginTime = -1;
 
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print("\r\nLast Packet Send Status:\t");
@@ -175,6 +177,8 @@ void setup() {
   delay(500);
   printEvent("Standing By for Launch.");
   
+  /*
+  
   updateLaunch();
   while (!checkLaunch())
   {
@@ -228,6 +232,8 @@ void setup() {
   // deploy vertically
   printEvent("Deploying vertically.");
   spinCameraStepper(30);
+  
+  */
 
   printEvent("Finished deploying vertically.");
   printEvent("Standing By for Camera commands...");
@@ -235,29 +241,28 @@ void setup() {
 
 // standby for RF commands
 void loop() {
-  /*
-  while (Serial.available() > 0) { // Check for an incoming byte on the serial port
+  while(Serial.available()>0){
+    if(beginTime == -1) beginTime = millis();
+    char letter = Serial.read();
+    message += letter;
+    //Serial.println(message);
+  }
+  if(beginTime != -1 && millis() - beginTime > 3000){
+    Serial.println("Executing Radio Commands");
+    interpretRadioString(message);
+    Serial.println("Done with all radio commands.");
+    message = "";
+    beginTime = -1;
+    exit(0);
+  }
   
-    inbyte = Serial.read();      // Get the byte
-    if (inbyte == '\n') {         // Check for end of line
-      String message(buf);
-      interpretRadioString(message);
-      Serial.println("Done with all radio commands.");
-      buflen = 0;
-      break;
-    }
-    else if (inbyte > 31 && buflen < 260) { // Only record printable characters
-      buf[buflen++] = inbyte;
-      buf[buflen] = 0;
-    }
-  } 
-  */
 
+  /*
   delay(10000);
   Serial.println("Executing Radio Commands");
   interpretRadioString("XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3.");
   Serial.println("Done with all radio commands.");
-  exit(0);
+  exit(0);*/
 }
 
 void recvMsg(uint8_t *data, size_t len) {
