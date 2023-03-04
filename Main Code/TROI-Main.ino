@@ -172,7 +172,7 @@ void setup() {
   for (int i = 1; i <= 10 * 90; i++) {
     if (i % 100 == 0){
       char timeMessage[50];
-      snprintf(timeMessage, 50, "We are %d seconds into flight!", i/10));
+      snprintf(timeMessage, 50, "We are %d seconds into flight!", i/10);
       printEvent(timeMessage);
     }
     recordFlightData();
