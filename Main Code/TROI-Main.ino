@@ -1,9 +1,8 @@
-/* TROI ESP-Main Code
+/* 
 NDRT Payload 2022-2023
-**ARDUINO**
+TROI ESP32-Main Code
 */
 
-#include <Arduino.h>
 #include <Wire.h>
 #include <AccelStepper.h>
 #include <Adafruit_Sensor.h>
@@ -21,36 +20,31 @@ NDRT Payload 2022-2023
 #define I2C_SDA2 32
 #define I2C_SCL2 33
 #define motorInterfaceType 1
-#define leadDIR 12
-#define leadSTEP 14
-#define cameraDIR 26  // 33
+#define leadDIR 12 // 12
+#define leadSTEP 14 // 14
+#define cameraDIR 26  // 26
 #define cameraSTEP 25 // 25
 #define ACCELERATION_LAND_TOLERANCE .3
 #define GYRO_LAND_TOLERANCE 5
 #define ACCELERATION_LAUNCH_TOLERANCE 30
 #define DEPLOYSTEPS 4800
 
-void appendFile(fs::FS &fs, const char *path, const char *message);
-
 TwoWire I2CSensors = TwoWire(0);
 TwoWire I2CSensors2 = TwoWire(1);
 Adafruit_BNO055 bno = Adafruit_BNO055(-1, BNO055_ADDRESS_A, &I2CSensors);
 Adafruit_BNO055 bno2 = Adafruit_BNO055(8, BNO055_ADDRESS_A, &I2CSensors2);
-
-imu::Vector<3> *accelerationQueue = new imu::Vector<3>[10];
-;
-imu::Vector<3> *gyroQueue = new imu::Vector<3>[10];
-int size = 0;
-
 AccelStepper LeadScrewStepper(motorInterfaceType, leadSTEP, leadDIR);
 AccelStepper CameraStepper(motorInterfaceType, cameraSTEP, cameraDIR);
 float cameraAngle = 0.0;
 
+imu::Vector<3> *accelerationQueue = new imu::Vector<3>[10];
+imu::Vector<3> *gyroQueue = new imu::Vector<3>[10];
+int size = 0;
+
 // Motor Values
-float travel_distance = 7.5;                   // Ask Spencer or https://drive.google.com/drive/u/0/folders/1Yd59MVs0kGjNgtfuYpVg5CDFZwnHGlRj.
-float num_steps = 400;                         // Steps per rotation; this would be if we are half-stepping (units: steps/revolution).
-float travel_distance_per_full_step = 0.00125; // Inches per step.
-float num_deployment_LeadScrew_steps = DEPLOYSTEPS; //travel_distance / travel_distance_per_full_step;
+float travel_distance = 7.5;
+float travel_distance_per_full_step = 0.00125;
+float num_deployment_LeadScrew_steps = DEPLOYSTEPS;
 
 // I2C RTC Clock Interface
 RTC_DS3231 rtc;
@@ -86,15 +80,15 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 void setup() {
   Serial.begin(38400);
 
-  // Wifi setup. Accessible at "<IP Address>/webserial" in browser
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+  WiFi.begin(ssid, password); // Wifi setup. Accessible at "<IP Address>/webserial" in browser
+  delay(1000);
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.println("WiFi Primary Failed!");
     WiFi.begin(ssid_backup, password_backup);
-    if (WiFi.waitForConnectResult() != WL_CONNECTED) {
+    delay(1000);
+    if (WiFi.waitForConnectResult() != WL_CONNECTED)
       Serial.println("WiFi backup failed!");
-    }
     else
       Serial.println("WiFi backup initialized");
   }
@@ -119,7 +113,6 @@ void setup() {
   I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
   I2CSensors2.begin(I2C_SDA2, I2C_SCL2, 100000);
   Wire.begin();
-
   Serial.println("Initialized both I2CSensors and Wire.");
 
   // RTC Clock
@@ -147,8 +140,6 @@ void setup() {
     return;
   }
   esp_now_register_send_cb(OnDataSent);
-  // Register peer
-  delay(1000);
   memcpy(peerInfo.peer_addr, broadcastAddress, 6);
   peerInfo.channel = 0;
   peerInfo.encrypt = false;
@@ -167,9 +158,8 @@ void setup() {
   CameraStepper.setSpeed(200);
 
   printEvent("Setup done!");
-  delay(500);
   printEvent("Standing By for Launch.");
-  /*
+
   updateLaunch();
   while (!checkLaunch()) {
     delay(100);
@@ -179,13 +169,12 @@ void setup() {
   printEvent("We Have Launched!");
 
   // Wait a minimum of 60 seconds before standing by for landing. Record flight data during this.
-  for (int i = 0; i < 10 * 60; i++) {
+  for (int i = 1; i <= 10 * 60; i++) {
     if (i % 100 == 0)
       Serial.println("10 seconds have gone by");
     recordFlightData();
     delay(100);
   }
-    */ delay(5000);
 
   // wait in standby mode and loop until landed
   printEvent("Standing By for Landing");
@@ -207,11 +196,9 @@ void setup() {
   float roll = atan2(2 * (q.w() * q.x() + q.y() * q.z()), 1 - 2 * (q.x() * q.x() + yy));
   float initialXAngle = 57.2958 * roll;
 
-  char buffer[64];
-  int ret = snprintf(buffer, sizeof buffer, "%f", initialXAngle);
-  printEvent("Landed at ");
+  char buffer[100];
+  int ret = snprintf(buffer, sizeof buffer, "Landed at %f degrees. Standby for horizontal motion.", initialXAngle);
   printEvent(buffer);
-  printEvent(" degrees. Standby for horizontal motion.");
   delay(500);
 
   leadScrewRun();
@@ -221,7 +208,6 @@ void setup() {
   // deploy vertically
   printEvent("Deploying vertically.");
   spinCameraStepper(-60);
-
   printEvent("Finished deploying vertically.");
   printEvent("Standing By for Camera commands...");
 }
@@ -236,22 +222,13 @@ void loop() {
       message += letter;
     }
   }
-  if(beginTime != -1 && millis() - beginTime > 3000){
-    Serial.println("Executing Radio Commands");
+  if(beginTime != -1 && millis() - beginTime > 1000){
+    storeEvent("Executing Radio Commands");
     interpretRadioString(message);
-    Serial.println("Done with all radio commands.");
+    storeEvent("Done with all radio commands.");
     message = "";
     beginTime = -1;
-    //exit(0);
   }
-  
-
-  /*
-  delay(10000);
-  Serial.println("Executing Radio Commands");
-  interpretRadioString("XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3.");
-  Serial.println("Done with all radio commands.");
-  exit(0);*/
 }
 
 void recvMsg(uint8_t *data, size_t len) {
@@ -432,9 +409,8 @@ bool checkRoll() {
         return true;
       }
     }
-    else if (countCheck != 5) {
+    else if (countCheck != 5)
       countCheck++;
-    }
     delay(3000);
   }
 }
@@ -519,7 +495,7 @@ void printEvent(const char *event) {
 }
 
 void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3."
-  Serial.println("Interpreting radio string");
+  storeEvent("Interpreting radio string");
   server.end();
   WiFi.disconnect();
   message.toUpperCase();
@@ -532,6 +508,8 @@ void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B
     numberCommands++;
     message.remove(location, 2);
   }
+  if(numberCommands == 0)
+    storeEvent("No commands found in serial message.");
   for (int i = 0; i < numberCommands; i++) {
     executeRadioCommand(commands[i]);
     delay(3000);
@@ -562,7 +540,7 @@ void executeRadioCommand(int command) {
     break;
   case 3:
     sendData(3);
-    delay(10000);
+    delay(12000);
     break;
   case 4:
     sendData(4);
