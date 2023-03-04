@@ -169,7 +169,7 @@ void setup() {
   printEvent("Setup done!");
   delay(500);
   printEvent("Standing By for Launch.");
-  
+  /*
   updateLaunch();
   while (!checkLaunch()) {
     delay(100);
@@ -185,6 +185,7 @@ void setup() {
     recordFlightData();
     delay(100);
   }
+    */ delay(5000);
 
   // wait in standby mode and loop until landed
   printEvent("Standing By for Landing");
@@ -524,7 +525,6 @@ void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B
   message.toUpperCase();
   int numberCommands = 0;
   int commands[100];
-  Serial.println("here");
   while(1){
     int location = findFirstRadioCommand(message);
     if(location == -1) break;
