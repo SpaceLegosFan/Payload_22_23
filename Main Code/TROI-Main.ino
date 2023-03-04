@@ -169,8 +169,10 @@ void setup() {
   printEvent("We Have Launched!");
 
   // Wait a minimum of 60 seconds before standing by for landing. Record flight data during this.
-  for (int i = 1; i <= 10 * 60; i++) {
-    if (i % 100 == 0)
+  for (int i = 1; i <= 10 * 90; i++) {
+    if (i % 100 == 0){
+      char[50] 
+    }
       Serial.println("10 seconds have gone by");
     recordFlightData();
     delay(100);
