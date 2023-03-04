@@ -127,10 +127,10 @@ static void rgb_print(dl_matrix3du_t *image_matrix, uint32_t color, const char *
 void initFS(){
 
   if (!SPIFFS.begin(true)) {
-    log_i("An Error has occurred while mounting FS");
+    Serial.println("An Error has occurred while mounting FS!");
       ESP.restart();
   }  else {
-    log_i("File System mounted successfully");
+    Serial.println("File System mounted successfully!");
       delay(500);
   }
 }
@@ -139,20 +139,20 @@ void initSDCARD(){
 
     //if(!SD_MMC.begin()){
     if(!SD_MMC.begin("/sdcard", true)){               // note: ("/sdcard", true) = 1 wire - see: https://www.reddit.com/r/esp32/comments/d71es9/a_breakdown_of_my_experience_trying_to_talk_to_an/
-      log_i("SD Card Mount Failed");
+      Serial.println("SD Card mount failed!");
       return;
     } else {
-      log_i("SD Card Mount successfull");
+      Serial.println("SD Card mount successfull!");
     }
   
 
     uint8_t cardType = SD_MMC.cardType();
 
     if(cardType == CARD_NONE){
-      log_i("No SD Card attached");
+      Serial.println("No SD Card attached!");
         return;
     } else {
-      log_i("SD Card attached");
+      Serial.println("SD Card attached!");
     }
 
   }
@@ -161,10 +161,13 @@ void initSDCARD(){
 void initEEPROM(){
 
   if (!EEPROM.begin(EEPROM_SIZE)){                                  // Initialize EEPROM with predefined size
-      log_i("failed to initialise EEPROM...");
-//      ESP.restart();
+      Serial.println("failed to initialise EEPROM...");
+      ESP.restart();
     } else {
-      log_i("Success to initialise EEPROM...");
+      Serial.println("Success to initialise EEPROM...");
+      pictureNumber = 0;
+      EEPROM.put(8,pictureNumber);                                                                                                            
+      EEPROM.commit();
     }
 
 }
@@ -195,22 +198,23 @@ void initCAMERA(camera_config_t config, sensor_t * s){
     config.pixel_format = PIXFORMAT_JPEG; //YUV422,GRAYSCALE,RGB565,JPEG                     
     
     if(psramFound()){                                           // https://github.com/espressif/esp-who/issues/83
-      log_i("PSRAM found");
+      Serial.println("PSRAM found!");
       //config.frame_size = FRAMESIZE_UXGA; 						        // FRAMESIZE_ + QVGA  ( 320 x 240 )
-      config.frame_size = FRAMESIZE_XGA; 						            // FRAMESIZE_ + QVGA  ( 320 x 240 ) 
+      config.frame_size = FRAMESIZE_SVGA; 						            // FRAMESIZE_ + QVGA  ( 320 x 240 ) 
       config.jpeg_quality = 10;                                 //              CIF   ( 352 x 288)
       config.fb_count = 1;                                      //              VGA   ( 640 x 480 )
     } else {                                                    //              SVGA  ( 800 x 600 )
-      log_i("PSRAM not found");                                 //              XGA   ( 1024 x 768 )
-      config.frame_size = FRAMESIZE_XGA;                              //              SXGA  ( 1280 x 1024 )
+      Serial.println("PSRAM not found!");                                 //              XGA   ( 1024 x 768 )
+      config.frame_size = FRAMESIZE_SVGA;                              //              SXGA  ( 1280 x 1024 )
       config.jpeg_quality = 12;                                 //              UXGA  ( 1600 x 1200 )
       config.fb_count = 1;
     }
 
     if(psramInit()){
-      log_i("PSRAM initiated");
+      Serial.println("PSRAM initiated!");
     } else {
-      log_i("PSRAM initiation failed");
+      Serial.println("PSRAM initiation failed!");
+      ESP.restart();
     }
 
 
@@ -219,11 +223,11 @@ void initCAMERA(camera_config_t config, sensor_t * s){
     do{
       err = esp_camera_init(&config);
         if (err != ESP_OK) {
-          log_i("Camera init failed with error 0x%x", err);
-          log_i("Init trial %i", tt);        
+          Serial.printf("Camera initalization failed with error 0x%x\n", err);
+          Serial.printf("Init trial %i\n", tt);        
           tt++;
         } else {
-          log_i("Camera init successfull");
+          Serial.println("Camera init successfull");
         }
     } while (err != ESP_OK && tt<=20);
 
@@ -235,7 +239,7 @@ void initCAMERA(camera_config_t config, sensor_t * s){
 
 
     s = esp_camera_sensor_get();
-    s->set_brightness(s, -2);     // -2 to 2
+    s->set_brightness(s, 2);     // -2 to 2
     s->set_contrast(s, 2);       // -2 to 2
     s->set_saturation(s, 0);     // -2 to 2
     s->set_special_effect(s, 0); // 0 to 6 (0 - No Effect, 1 - Negative, 2 - Grayscale, 3 - Red Tint, 4 - Green Tint, 5 - Blue Tint, 6 - Sepia)
@@ -267,8 +271,8 @@ void initCAMERA(camera_config_t config, sensor_t * s){
 void takeImage(){
 
   vTaskDelay(stut);
-  
-  Serial.printf("Taking a photo...");
+  Serial.println("----------------------------");
+  Serial.println("Taking a photo...");
      
   camera_fb_t * fb = esp_camera_fb_get();;                                       
   
@@ -278,20 +282,20 @@ void takeImage(){
   fb = esp_camera_fb_get();                                          
     if(!fb) {
       CamCaptureSucess = false;
-        Serial.printf("Camera capture failed...");
+        Serial.println("Camera capture failed...");
 
     } else {
       CamCaptureSucess = true;
-        Serial.printf("Camera capture success...");
+        Serial.println("Camera capture success...");
 
         EEPROM.get(8,pictureNumber);                                            
-        Serial.printf("Current picture number counter : %i",pictureNumber);
+        Serial.printf("Current picture number counter : %i\n",pictureNumber);
         
         pictureNumber++;                                                    
         EEPROM.put(8,pictureNumber);                                                                                                            
         EEPROM.commit();                                                                                                                                        
         EEPROM.get(8,pictureNumber);                                          
-        Serial.printf("New picture number counter : %i",pictureNumber);
+        Serial.printf("New picture number counter : %i\n",pictureNumber);
 
     } 
 
@@ -328,7 +332,7 @@ void takeImage(){
     Serial.printf("Picture file name (FS): %s\n", FILE_PHOTO_FS);               // FS Photo file name
     // Insert the data in the photo file
     if (!fileFS) {
-      Serial.println("Failed to open file (FS) in writing mode");
+      Serial.println("Failed to open file (FS) in writing mode!\n");
     } else {
       Serial.printf("File (FS) open in writing mode : %s\n",FILE_PHOTO_FS);
 
@@ -336,7 +340,7 @@ void takeImage(){
         fileFS.write(_jpg_buf, _jpg_buf_len);
         Serial.printf("The picture has been saved in (FS) ");
         pic_sz = fileFS.size();                                     
-          Serial.printf("File Size: %i bytes | read trial: %i of 20", pic_sz, t);
+          Serial.printf("File Size: %i bytes | read trial: %i of 20\n", pic_sz, t);
           t++;
         } while (pic_sz == 0 && t <= 20);
           if(t >= 20){ESP.restart();}                                
@@ -360,7 +364,7 @@ void takeImage(){
 
         fs::FS &fs = SD_MMC;
         fileName = path.c_str();
-          Serial.printf("Picture file name (SDCARD): %s", path.c_str());
+          Serial.printf("Picture file name (SDCARD): %s\n", path.c_str());
         
         File fileSDCARD = fs.open(path.c_str(), FILE_WRITE);                  // Save image on SD Card with dynamic name
           if(!fileSDCARD){
@@ -381,9 +385,9 @@ void takeImage(){
 
   
   // Turns off the ESP32-CAM white on-board LED (flash) connected to GPIO 4
-  //pinMode(4, OUTPUT);                   // Those lines must be commented to allow
-  //digitalWrite(4, LOW);                 //  the SD card pin to be released
-  //rtc_gpio_hold_en(GPIO_NUM_4);         // If not commented, SD card file saving on
+  pinMode(4, OUTPUT);                   // Those lines must be commented to allow
+  digitalWrite(4, LOW);                 //  the SD card pin to be released
+  rtc_gpio_hold_en(GPIO_NUM_4);         // If not commented, SD card file saving on
                                            //  2nd loop will result in critical fault
 
  delay(100);
@@ -401,16 +405,14 @@ void setup() {
 
   // Initalize ESP-NOW
   if (esp_now_init() != ESP_OK) {
-    printEvent("Error initializing ESP-NOW");
+    printEvent("Error initializing ESP-NOW.");
+    ESP.restart();
     return;
   }
   
   // Once ESPNow is successfully Init, we will register for recv CB to
   // get recv packer info
   esp_now_register_recv_cb(OnDataRecv);
-
-  int pictureNumber = 4;
-  Serial.println(pictureNumber);
 
 
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); 				          //disable brownout detector
@@ -426,7 +428,6 @@ void setup() {
   Serial.printf("Flash Size %d, Flash Speed %d\n", ESP.getFlashChipSize(), ESP.getFlashChipSpeed());
 
   printEvent("Taking junk photos...");
-  String initial_path_junk = "/null.jpg";
   takeImage();
   takeImage();
   takeImage();
@@ -484,7 +485,10 @@ void remove_filt(sensor_t * s) {
 
 void take_picture() {
   printEvent("Take picture.");
+  long int t1 = millis();
   takeImage();
+  long int t2 = millis();
+  Serial.print("Time taken to take picture: "); Serial.print(t2-t1); Serial.println(" milliseconds");
   printEvent("Ok!");
 }
 
