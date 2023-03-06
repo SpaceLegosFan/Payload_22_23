@@ -43,12 +43,13 @@
 #define HREF_GPIO_NUM     23
 #define PCLK_GPIO_NUM     22
 
+
 #define FILE_PHOTO_FS "/data/txtOvl_photo.jpg"   
 
 boolean takeNewPhoto = true;
 bool taskCompleted = false;
 
-int countReceived = 1;
+int countReceived = 0;
 
 String fileName = "empty";    
 
@@ -82,6 +83,136 @@ typedef struct struct_message {
 
 // Create a struct_message called myData
 struct_message myData;
+
+typedef unsigned char u8;
+
+#define OV2640_MAXLEVEL_SHARPNESS 6
+
+const static u8 OV2640_SHARPNESS_AUTO[]=
+{
+0xFF, 0x00, 0xff,
+0x92, 0x01, 0xff,
+0x93, 0x20, 0x20,
+0x00, 0x00, 0x00
+};
+
+const static u8 OV2640_SHARPNESS_MANUAL[]=
+{
+0xFF, 0x00, 0xff,
+0x92, 0x01, 0xff,
+0x93, 0x00, 0x20,
+0x00, 0x00, 0x00
+};
+
+const static u8 OV2640_SHARPNESS_LEVEL0[]=
+{
+0xFF, 0x00, 0xff,
+0x92, 0x01, 0xff,
+0x93, 0xc0, 0x1f,
+0x00, 0x00, 0x00
+};
+const static u8 OV2640_SHARPNESS_LEVEL1[]=
+{
+0xFF, 0x00, 0xff,
+0x92, 0x01, 0xff,
+0x93, 0xc1, 0x1f,
+0x00, 0x00, 0x00
+};
+const static u8 OV2640_SHARPNESS_LEVEL2[]=
+{
+0xFF, 0x00, 0xff,
+0x92, 0x01, 0xff,
+0x93, 0xc2, 0x1f,
+0x00, 0x00, 0x00
+};
+const static u8 OV2640_SHARPNESS_LEVEL3[]=
+{
+0xFF, 0x00, 0xff,
+0x92, 0x01, 0xff,
+0x93, 0xc4, 0x1f,
+0x00, 0x00, 0x00
+};
+const static u8 OV2640_SHARPNESS_LEVEL4[]=
+{
+0xFF, 0x00, 0xff,
+0x92, 0x01, 0xff,
+0x93, 0xc8, 0x1f,
+0x00, 0x00, 0x00
+};
+const static u8 OV2640_SHARPNESS_LEVEL5[]=
+{
+0xFF, 0x00, 0xff,
+0x92, 0x01, 0xff,
+0x93, 0xd0, 0x1f,
+0x00, 0x00, 0x00
+};
+const static u8 OV2640_SHARPNESS_LEVEL6[]=
+{
+0xFF, 0x00, 0xff,
+0x92, 0x01, 0xff,
+0x93, 0xdf, 0x1f,
+0x00, 0x00, 0x00
+};
+
+const static u8 *OV_SETTING_SHARPNESS[]=
+{
+OV2640_SHARPNESS_LEVEL0,
+OV2640_SHARPNESS_LEVEL1,
+OV2640_SHARPNESS_LEVEL2,
+OV2640_SHARPNESS_LEVEL3,
+OV2640_SHARPNESS_LEVEL4,
+OV2640_SHARPNESS_LEVEL5,
+OV2640_SHARPNESS_LEVEL6
+};
+
+static int table_mask_write(const u8* ptab)
+{
+u8 address;
+u8 value,orgval;
+u8 mask;
+const u8 *pdata=ptab;
+
+if ( NULL==pdata )   
+    return -1;
+sensor_t * s = esp_camera_sensor_get();
+
+while(1)   
+{   
+    address =*pdata++;   
+    value = *pdata++;   
+    mask = *pdata++;           
+    if ( (0==address) && (0==value) &&(0==mask) )   
+    {   
+        break;   
+    }   
+    
+    s->set_reg(s,address,mask,value);
+}   
+
+return 0;   
+
+}
+
+int change_sharpness( int sharpness )
+{
+if ( sharpness > OV2640_MAXLEVEL_SHARPNESS)
+{
+return -1;
+}
+
+if( sharpness <0 )   
+{   
+    table_mask_write(OV2640_SHARPNESS_AUTO);       
+}   
+else   
+{   
+    table_mask_write(OV2640_SHARPNESS_MANUAL);     
+    table_mask_write(OV_SETTING_SHARPNESS[sharpness]);   
+}      
+
+return 0;   
+
+}
 
 // callback function that will be executed when data is received
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
@@ -147,8 +278,8 @@ void initFS(){
   
 void initSDCARD(){
 
-    //if(!SD_MMC.begin()){
-    if(!SD_MMC.begin("/sdcard", true)){               // note: ("/sdcard", true) = 1 wire - see: https://www.reddit.com/r/esp32/comments/d71es9/a_breakdown_of_my_experience_trying_to_talk_to_an/
+    if(!SD_MMC.begin()){
+  // if(!SD_MMC.begin("/sdcard", true)){               // note: ("/sdcard", true) = 1 wire - see: https://www.reddit.com/r/esp32/comments/d71es9/a_breakdown_of_my_experience_trying_to_talk_to_an/
       Serial.println("SD Card mount failed!");
       return;
     } else {
@@ -275,7 +406,7 @@ void initCAMERA(camera_config_t config, sensor_t * s){
 
     camera_fb_t * fb = NULL;
     s = esp_camera_sensor_get(); 
-    int light=0;
+    int light=255;
     int day_switch_value=140;
 
   s->set_whitebal(s, 1);       // 0 = disable , 1 = enable
@@ -301,7 +432,7 @@ void initCAMERA(camera_config_t config, sensor_t * s){
     
    s->set_reg(s,0xff,0xff,0x01);//banksel    
 
-   light = s->get_reg(s,0x2f,0xff);
+   //light = s->get_reg(s,0x2f,0xff);
    Serial.print("First light is ");
    Serial.println(light);
    Serial.print("Old 0x0 value is");   
@@ -636,6 +767,9 @@ void initCAMERA(camera_config_t config, sensor_t * s){
    
     s->set_reg(s,0xff,0xff,0x00);//banksel 
     s->set_reg(s,0xd3,0xff,0x8);//clock
+
+    //s->set_reg(s,0xff,0xff,0x00);//banksel
+    //s->set_reg(s,0xd3,0xff,5);//clock
     
     s->set_reg(s,0x42,0xff,0x2f);//image quality (lower is bad)
     s->set_reg(s,0x44,0xff,3);//quality
@@ -655,8 +789,9 @@ void initCAMERA(camera_config_t config, sensor_t * s){
     //s->set_reg(s,0x91,0xff,0x67);//really weird stuff in the last 4 bits, can also crash the camera           
 
     //no sharpening
-    s->set_reg(s,0x92,0xff,0x1);
-    s->set_reg(s,0x93,0xff,0x0);  
+    //s->set_reg(s,0x92,0xff,0x1);
+    //s->set_reg(s,0x93,0xff,0x0);  
+    change_sharpness(0);
 
   
 }
@@ -668,11 +803,12 @@ void initCAMERA(camera_config_t config, sensor_t * s){
 void takeImage(){
 
   vTaskDelay(stut);
+  delay(1000);
   Serial.println("----------------------------");
   Serial.println("Taking a photo...");
      
-  camera_fb_t * fb = esp_camera_fb_get();;                                       
-  
+  camera_fb_t * fb = esp_camera_fb_get();
+
   bool CamCaptureSucess = true;                                      
   bool CamCaptureSize = true;
 
@@ -701,8 +837,8 @@ void takeImage(){
         String txtOverlay = "TROI - " + text;
         const char* txtOverlay_char = txtOverlay.c_str();
 
-        dl_matrix3du_t *image_matrix = dl_matrix3du_alloc(1, fb->width, fb->height, 3);
-        fmt2rgb888(fb->buf, fb->len, fb->format, image_matrix->item);  
+        dl_matrix3du_t * image_matrix = dl_matrix3du_alloc(1, fb->width, fb->height, 3);
+        fmt2rgb888(fb->buf, fb->len, fb->format, image_matrix->item); // This throws the error which causes the panic at high levels of clock.
         rgb_print(image_matrix, 0x000000FF, txtOverlay_char);            
 
         size_t _jpg_buf_len = 0;
@@ -711,12 +847,10 @@ void takeImage(){
           //int available_PSRAM_size = ESP.getFreePsram();
           int available_PSRAM_size = ESP.getFreeHeap();
           Serial.printf("PSRAM Size available (bytes)           : %i\n", available_PSRAM_size);
-
-        dl_matrix3du_free(image_matrix);
+          dl_matrix3du_free(image_matrix);
 
           int available_PSRAM_size_after = ESP.getFreeHeap();
           Serial.printf("PSRAM Size available after free (bytes): %i\n", available_PSRAM_size_after);
-      
       // Text overlay END
 
   if (CamCaptureSucess == true){ 
@@ -774,6 +908,7 @@ void takeImage(){
           
           fileSDCARD.close();
 
+
         esp_camera_fb_return(fb);
     
     } //CamCaptureSize = true;
@@ -782,9 +917,9 @@ void takeImage(){
 
   
   // Turns off the ESP32-CAM white on-board LED (flash) connected to GPIO 4
-  pinMode(4, OUTPUT);                   // Those lines must be commented to allow
-  digitalWrite(4, LOW);                 //  the SD card pin to be released
-  rtc_gpio_hold_en(GPIO_NUM_4);         // If not commented, SD card file saving on
+ // pinMode(4, OUTPUT);                   // Those lines must be commented to allow
+  //digitalWrite(4, LOW);                 //  the SD card pin to be released
+  //rtc_gpio_hold_en(GPIO_NUM_4);         // If not commented, SD card file saving on
                                            //  2nd loop will result in critical fault
 
  delay(100);
@@ -800,6 +935,8 @@ void setup() {
   delay(5000); 
   WiFi.mode(WIFI_STA);
 
+
+
   // Initalize ESP-NOW
   if (esp_now_init() != ESP_OK) {
     printEvent("Error initializing ESP-NOW.");
@@ -812,12 +949,11 @@ void setup() {
   esp_now_register_recv_cb(OnDataRecv);
 
 
-  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); 				          //disable brownout detector
+  //WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); 				          //disable brownout detector
 
   initSDCARD();
   initFS();
-  //initCAMERA(config, s);
-  delay(5000);
+  initCAMERA(config, s);
   initEEPROM();
 
   Serial.printf("Internal heap %d, internal Free Heap %d\n", ESP.getHeapSize(), ESP.getFreeHeap());
@@ -896,3 +1032,7 @@ void take_picture() {
 void printEvent(const char* event) {
   Serial.println(event);
 }
+
+
+//
+
