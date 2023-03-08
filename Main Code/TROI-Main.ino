@@ -9,7 +9,6 @@ TROI ESP32-Main Code
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
 #include <ESPAsyncWebServer.h>
-#include <WebSerialPro.h>
 #include <esp_now.h>
 #include <WiFi.h>
 #include "FS.h"
@@ -49,14 +48,6 @@ float num_deployment_LeadScrew_steps = DEPLOYSTEPS;
 // I2C RTC Clock Interface
 RTC_DS3231 rtc;
 
-// WiFi
-AsyncWebServer server(80);
-const char *ssid = "\x48\x75\x6e\x74\x65\x72\xe2\x80\x99\x73\x20\x69\x50\x68\x6f\x6e\x65"; // Your WiFi SSID
-const char *password = "hunter123";                                                        // WiFi Password
-const char *ssid_backup = "ND-guest";
-const char *password_backup = "";
-String serialMessage = "";
-
 // ESP-NOW - THIS NEEDS TO BE CHANGED, MAC ADDRESS NOT VALID
 uint8_t broadcastAddress[] = {0xC8, 0xF0, 0x9E, 0x4F, 0x69, 0xD0};
 typedef struct struct_message{
@@ -69,7 +60,7 @@ esp_now_peer_info_t peerInfo;
 char inbyte = 0;                 // Received byte
 char buf[260];                   // Incoming data buffer
 int buflen = 0;                  // Length of buffered ata
-String message = "";
+String serialMessage = "";
 int beginTime = -1;
 
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
@@ -80,25 +71,6 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 void setup() {
   Serial.begin(38400);
 
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password); // Wifi setup. Accessible at "<IP Address>/webserial" in browser
-  delay(1000);
-  if (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    Serial.println("WiFi Primary Failed!");
-    WiFi.begin(ssid_backup, password_backup);
-    delay(1000);
-    if (WiFi.waitForConnectResult() != WL_CONNECTED)
-      Serial.println("WiFi backup failed!");
-    else
-      Serial.println("WiFi backup initialized");
-  }
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP());
-  WebSerialPro.begin(&server);
-  WebSerialPro.msgCallback(recvMsg);
-  server.begin();
-  Serial.println("WiFi setup finished.");
-
   // SD Card
   if (!SD.begin()) {
     Serial.println("SD Initialization failed!");
@@ -106,7 +78,6 @@ void setup() {
   appendFile(SD, "/payload.txt", "\n\n\nOutput file for payload systems:\n");
   appendFile(SD, "/data.txt", "\n\n\nOutput file for data logging:\n");
   Serial.print("SD Card Initialized.\n");
-  WebSerialPro.println("SD Card Initialized.");
   appendFile(SD, "/payload.txt", "SD Card Initialized.\n");
 
   // I2C Sensors
@@ -135,6 +106,7 @@ void setup() {
   bno2.setExtCrystalUse(true);
 
   // ESP-NOW setup
+  WiFi.mode(WIFI_STA);
   if (esp_now_init() != ESP_OK) {
     printEvent("Error initializing ESP-NOW.");
     return;
@@ -217,61 +189,8 @@ void setup() {
 
 // standby for RF commands
 void loop() {
-  while(Serial.available()>0){
-    if(beginTime == -1) beginTime = millis();
-    int index = Serial.read();
-    if((index > 48 && index < 57) || (index > 64 && index < 73)){
-      char letter = index;
-      message += letter;
-    }
-  }
-  if(beginTime != -1 && millis() - beginTime > 1000){
-    storeEvent("Executing Radio Commands");
-    interpretRadioString(message);
-    storeEvent("Done with all radio commands.");
-    message = "";
-    beginTime = -1;
-  }
-}
-
-void recvMsg(uint8_t *data, size_t len) {
-  printEvent("Received WebSerial Data...");
-  String d = "";
-  for (int i = 0; i < len; i++) {
-    d += char(data[i]);
-  }
-  WebSerialPro.println(d);
-  Serial.println(d);
-  d.toLowerCase();
-  if (d == "run motor") {
-    serialMessage = d;
-  }
-  else if(d == "reset"){
-    num_deployment_LeadScrew_steps = DEPLOYSTEPS;
-  }
-  else if (d == "change direction")
-    changeStepperDirection();
-  else if(d == "reset motor"){
-    num_deployment_LeadScrew_steps = -5900;
-    serialMessage = "run motor";
-  }
-  else if (d.indexOf("radio string") != -1) {
-    serialMessage = d;
-  }
-  else if (d.indexOf("camera turn") != -1) {
-    serialMessage = d;
-  }
-  else if (d.indexOf("radio command") != -1) {
-    int command = d.substring(d.indexOf("=") + 2).toInt();
-    executeRadioCommand(command);
-    WebSerialPro.print("The radio command is: ");
-    WebSerialPro.println(command);
-  }
-  else if (d == "print steps") {
-    WebSerialPro.println(num_deployment_LeadScrew_steps);
-  }
-  else if (d.indexOf("steps =") != -1)
-    num_deployment_LeadScrew_steps = d.substring(d.indexOf("=") + 2).toInt();
+  serialMessage = "";
+  updateSerialMessage();
 }
 
 /*
@@ -352,24 +271,54 @@ void recordFlightData() {
   storeData("gyroAverage", gyroAverage);
 }
 
+void updateSerialMessage(){
+  while(Serial.available()>0){
+    if(beginTime == -1) beginTime = millis();
+    int index = Serial.read();
+    if((index > 48 && index < 57) || (index > 64 && index < 73)){
+      char letter = index;
+      serialMessage += letter;
+    }
+  }
+  if(beginTime != -1 && millis() - beginTime > 1000){
+    storeEvent("Executing Radio Commands");
+    interpretRadioString(serialMessage);
+    storeEvent("Done with all radio commands.");
+    serialMessage = "";
+    beginTime = -1;
+  }
+}
+
 void checkSerialMessage() {
+  serialMessage.toLowerCase();
   if (serialMessage != "") {
-    Serial.println("checkSerialMessage is running");
-    if (serialMessage == "run motor") {
+    if (serialMessage == "run motor")
       leadScrewRun();
+    else if (serialMessage == "change direction")
+      num_deployment_LeadScrew_steps *= -1;
+    else if (serialMessage == "print steps")
+      Serial.println(num_deployment_LeadScrew_steps);
+    else if(serialMessage == "reset steps")
+      num_deployment_LeadScrew_steps = DEPLOYSTEPS;
+    else if(serialMessage == "reset motor"){
+      int temp = num_deployment_LeadScrew_steps;
+      num_deployment_LeadScrew_steps = -5900;
+      serialMessage = "run motor";
+      num_deployment_LeadScrew_steps = temp;
     }
-    else if (serialMessage.indexOf("radio string") != -1) {
-      String radioMessage = serialMessage.substring(serialMessage.indexOf("=") + 2);
-      WebSerialPro.print("The radio message is: ");
-      WebSerialPro.println(radioMessage);
-      interpretRadioString(radioMessage);
-    }
+    else if (serialMessage.indexOf("steps =") != -1)
+      num_deployment_LeadScrew_steps = serialMessage.substring(serialMessage.indexOf("=") + 2).toInt();
+    else if (serialMessage.indexOf("radio string") != -1)
+      interpretRadioString(serialMessage);
     else if (serialMessage.indexOf("camera turn") != -1) {
       int angle = serialMessage.substring(serialMessage.indexOf("=") + 2).toInt();
-      WebSerialPro.print("The camera motor will turn ");
-      WebSerialPro.print(angle);
-      WebSerialPro.println(" degrees.");
       spinCameraStepper(angle);
+    }
+    else if (serialMessage.indexOf("radio command") != -1) {
+      int command = serialMessage.substring(serialMessage.indexOf("=") + 2).toInt();
+      executeRadioCommand(command);
+      Serial.print("The radio command is: ");
+      Serial.println(command);
     }
     serialMessage = "";
   }
@@ -418,23 +367,16 @@ bool checkRoll() {
   }
 }
 
-void changeStepperDirection() {
-  num_deployment_LeadScrew_steps *= -1;
-}
-
 void leadScrewRun() {
   LeadScrewStepper.move(num_deployment_LeadScrew_steps);
-  while (LeadScrewStepper.run()) {
-  }
+  while (LeadScrewStepper.run()) {}
 }
 
 void spinCameraStepper(int angle) {
-  if (cameraAngle + angle > 180) {
+  if (cameraAngle + angle > 180)
     angle = angle - 360;
-  }
-  else if (cameraAngle + angle < -180) {
+  else if (cameraAngle + angle < -180)
     angle = angle + 360;
-  }
   Serial.println(angle);
   int steps = angle / 1.8;
   cameraAngle += steps * 1.8;
@@ -454,16 +396,6 @@ void appendFile(fs::FS &fs, const char *path, const char *message) {
     Serial.println("Append failed");
   }
   file.close();
-}
-
-void printTime() {
-  DateTime now = rtc.now();
-  char bufferString[] = "DD MMM hh:mm:ss";
-  char *timeString = now.toString(bufferString);
-  Serial.print(timeString);
-  Serial.print(" - ");
-  WebSerialPro.print(timeString);
-  WebSerialPro.print(" - ");
 }
 
 void storeEvent(const char *event) {
@@ -491,16 +423,17 @@ void storeData(const char *type, float data) {
 }
 
 void printEvent(const char *event) {
-  printTime();
+  DateTime now = rtc.now();
+  char bufferString[] = "DD MMM hh:mm:ss";
+  char *timeString = now.toString(bufferString);
+  Serial.print(timeString);
+  Serial.print(" - ");
   Serial.println(event);
-  WebSerialPro.println(event);
   storeEvent(event);
 }
 
 void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3."
   storeEvent("Interpreting radio string");
-  server.end();
-  WiFi.disconnect();
   message.toUpperCase();
   int numberCommands = 0;
   int commands[100];
