@@ -26,7 +26,7 @@ TROI ESP32-Main Code
 #define ACCELERATION_LAND_TOLERANCE .3
 #define GYRO_LAND_TOLERANCE 5
 #define ACCELERATION_LAUNCH_TOLERANCE 30
-#define DEPLOYSTEPS 4800
+#define DEPLOYSTEPS 5300
 
 TwoWire I2CSensors = TwoWire(0);
 TwoWire I2CSensors2 = TwoWire(1);
@@ -136,15 +136,9 @@ void setup() {
   while (!checkLaunch()) {
     delay(100);
     updateLaunch();
+    updateSerialMessage();
     if(serialMessage != ""){
-      if(serialMessage.substring(0, 6) == "admin:"){
-        serialMessage = serialMessage.substring(6);
-        checkSerialMessage();
-      }
-      else{
-        Serial.println("Not given an admin command");
-        serialMessage = "";
-      }
+      checkSerialMessage();
     }
   }
   printEvent("We Have Launched!");
@@ -199,7 +193,21 @@ void setup() {
 // standby for RF commands
 void loop() {
   serialMessage = "";
-  updateSerialMessage();
+  while(Serial.available()>0){
+    if(beginTime == -1) beginTime = millis();
+    int index = Serial.read();
+    if((index > 48 && index < 57) || (index > 64 && index < 73)){
+      char letter = index;
+      serialMessage += letter;
+    }
+  }
+  if(beginTime != -1 && millis() - beginTime > 1000){
+    storeEvent("Executing Radio Commands");
+    interpretRadioString(serialMessage);
+    storeEvent("Done with all radio commands.");
+    serialMessage = "";
+    beginTime = -1;
+  }
 }
 
 /*
@@ -282,19 +290,11 @@ void recordFlightData() {
 
 void updateSerialMessage(){
   while(Serial.available()>0){
-    if(beginTime == -1) beginTime = millis();
     int index = Serial.read();
-    if((index > 48 && index < 57) || (index > 64 && index < 73)){
+    if(index >= 32 && index < 127){
       char letter = index;
       serialMessage += letter;
     }
-  }
-  if(beginTime != -1 && millis() - beginTime > 1000){
-    storeEvent("Executing Radio Commands");
-    interpretRadioString(serialMessage);
-    storeEvent("Done with all radio commands.");
-    serialMessage = "";
-    beginTime = -1;
   }
 }
 
@@ -311,7 +311,19 @@ void checkSerialMessage() {
       num_deployment_LeadScrew_steps = DEPLOYSTEPS;
     else if(serialMessage == "reset motor"){
       int temp = num_deployment_LeadScrew_steps;
-      num_deployment_LeadScrew_steps = -5900;
+      num_deployment_LeadScrew_steps = -DEPLOYSTEPS;
+      serialMessage = "run motor";
+      num_deployment_LeadScrew_steps = temp;
+    }
+    else if(serialMessage == "step down"){
+      int temp = num_deployment_LeadScrew_steps;
+      num_deployment_LeadScrew_steps = -50;
+      serialMessage = "run motor";
+      num_deployment_LeadScrew_steps = temp;
+    }
+    else if(serialMessage == "step up"){
+      int temp = num_deployment_LeadScrew_steps;
+      num_deployment_LeadScrew_steps = 50;
       serialMessage = "run motor";
       num_deployment_LeadScrew_steps = temp;
     }
@@ -329,6 +341,8 @@ void checkSerialMessage() {
       Serial.print("The radio command is: ");
       Serial.println(command);
     }
+    else
+      Serial.println("Not a valid command!");
     serialMessage = "";
   }
 }
