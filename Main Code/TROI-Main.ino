@@ -136,7 +136,16 @@ void setup() {
   while (!checkLaunch()) {
     delay(100);
     updateLaunch();
-    checkSerialMessage();
+    if(serialMessage != ""){
+      if(serialMessage.substring(0, 6) == "admin:"){
+        serialMessage = serialMessage.substring(6);
+        checkSerialMessage();
+      }
+      else{
+        Serial.println("Not given an admin command");
+        serialMessage = "";
+      }
+    }
   }
   printEvent("We Have Launched!");
 
