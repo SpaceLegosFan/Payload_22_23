@@ -14,15 +14,15 @@ TROI ESP32-Main Code
 #include "FS.h"
 #include "SD.h"
 #include "RTClib.h"
-#define I2C_SDA 21
-#define I2C_SCL 22
-#define I2C_SDA2 32
-#define I2C_SCL2 33
+#define I2C_SDA 21 // SDA = 21
+#define I2C_SCL 22 // SCL = 22
+#define I2C_SDA2 32 // SDA2 = 32
+#define I2C_SCL2 33 // SCL2 = 33
 #define motorInterfaceType 1
-#define leadDIR 12 // 12
-#define leadSTEP 14 // 14
-#define cameraDIR 26  // 26
-#define cameraSTEP 25 // 25
+#define leadDIR 12 // DIR1 = 26
+#define leadSTEP 14 // STEP1 = 25
+#define cameraDIR 26  // DIR2 = 13
+#define cameraSTEP 25 // STEP2 = 27
 #define ACCELERATION_LAND_TOLERANCE .3
 #define GYRO_LAND_TOLERANCE 5
 #define ACCELERATION_LAUNCH_TOLERANCE 30
