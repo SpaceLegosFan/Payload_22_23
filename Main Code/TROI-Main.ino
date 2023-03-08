@@ -8,7 +8,6 @@ TROI ESP32-Main Code
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
-#include <ESPAsyncWebServer.h>
 #include <esp_now.h>
 #include <WiFi.h>
 #include "FS.h"
@@ -26,7 +25,7 @@ TROI ESP32-Main Code
 #define ACCELERATION_LAND_TOLERANCE .3
 #define GYRO_LAND_TOLERANCE 5
 #define ACCELERATION_LAUNCH_TOLERANCE 30
-#define DEPLOYSTEPS 5300
+#define DEPLOYSTEPS 5200
 
 TwoWire I2CSensors = TwoWire(0);
 TwoWire I2CSensors2 = TwoWire(1);
@@ -188,11 +187,11 @@ void setup() {
   spinCameraStepper(-60);
   printEvent("Finished deploying vertically.");
   printEvent("Standing By for Camera commands...");
+	serialMessage = "":
 }
 
 // standby for RF commands
 void loop() {
-  serialMessage = "";
   while(Serial.available()>0){
     if(beginTime == -1) beginTime = millis();
     int index = Serial.read();
@@ -475,49 +474,45 @@ void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B
   }
 }
 
-int findFirstRadioCommand(String message){
-  int location = -1;
+int findFirstRadioCommand(String message) {
   String possibleCommands[8] = {"A1", "B2", "C3", "D4", "E5", "F6", "G7", "H8"};
-  for(int i = 0; i < 8; i++){
+  int location = -1;
+
+  for (int i = 0; i < 8; i++) {
     int potentialLocation = message.indexOf(possibleCommands[i]);
-    if(potentialLocation != -1 && (location == -1 || potentialLocation < location))
+    if (potentialLocation != -1 && (location == -1 || potentialLocation < location)) {
       location = potentialLocation;
+    }
   }
+
   return location;
 }
 
+
 void executeRadioCommand(int command) {
-  char string[50] = "I am executing command ";
-  string[strlen(string)] = (char)command + 48;
+  String string = "I am executing command " + String(command);
   printEvent(string);
   switch (command) {
-  case 1:
-    spinCameraStepper(60);
-    break;
-  case 2:
-    spinCameraStepper(-60);
-    break;
-  case 3:
-    sendData(3);
-    delay(12000);
-    break;
-  case 4:
-    sendData(4);
-    break;
-  case 5:
-    sendData(5);
-    break;
-  case 6:
-    sendData(6);
-    break;
-  case 7:
-    sendData(7);
-    break;
-  case 8:
-    sendData(8);
-    break;
+    case 1:
+      spinCameraStepper(60);
+      break;
+    case 2:
+      spinCameraStepper(-60);
+      break;
+    case 3:
+      sendData(3);
+      delay(12000);
+      break;
+    case 4:
+    case 5:
+    case 6:
+    case 7:
+    case 8:
+      sendData(command);
+      break;
   }
 }
+
 
 void sendData(int commandData) {
   // Get Timestamp
