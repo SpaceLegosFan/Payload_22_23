@@ -17,10 +17,10 @@ TROI ESP32-Main Code
 #define I2C_SDA2 32 // SDA2 = 32
 #define I2C_SCL2 33 // SCL2 = 33
 #define motorInterfaceType 1
-#define leadDIR 12 // DIR1 = 26
-#define leadSTEP 14 // STEP1 = 25
-#define cameraDIR 26  // DIR2 = 13
-#define cameraSTEP 25 // STEP2 = 27
+#define leadDIR 26
+#define leadSTEP 25
+#define cameraDIR 13
+#define cameraSTEP 27
 #define ACCELERATION_LAND_TOLERANCE .3
 #define GYRO_LAND_TOLERANCE 5
 #define ACCELERATION_LAUNCH_TOLERANCE 30
