@@ -11,7 +11,6 @@ TROI ESP32-Main Code
 #include <esp_now.h>
 #include <WiFi.h>
 #include "FS.h"
-#include "SD.h"
 #include "RTClib.h"
 #define I2C_SDA 21 // SDA = 21
 #define I2C_SCL 22 // SCL = 22
@@ -69,15 +68,6 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 
 void setup() {
   Serial.begin(38400);
-
-  // SD Card
-  if (!SD.begin()) {
-    Serial.println("SD Initialization failed!");
-  }
-  appendFile(SD, "/payload.txt", "\n\n\nOutput file for payload systems:\n");
-  appendFile(SD, "/data.txt", "\n\n\nOutput file for data logging:\n");
-  Serial.print("SD Card Initialized.\n");
-  appendFile(SD, "/payload.txt", "SD Card Initialized.\n");
 
   // I2C Sensors
   I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
@@ -149,7 +139,7 @@ void setup() {
       snprintf(timeMessage, 50, "We are %d seconds into flight!", i/10);
       printEvent(timeMessage);
     }
-    recordFlightData();
+    updateLanding();
     delay(100);
   }
 
@@ -187,7 +177,7 @@ void setup() {
   spinCameraStepper(-60);
   printEvent("Finished deploying vertically.");
   printEvent("Standing By for Camera commands...");
-	serialMessage = "":
+	serialMessage = "";
 }
 
 // standby for RF commands
@@ -201,9 +191,9 @@ void loop() {
     }
   }
   if(beginTime != -1 && millis() - beginTime > 1000){
-    storeEvent("Executing Radio Commands");
+    printEvent("Executing Radio Commands");
     interpretRadioString(serialMessage);
-    storeEvent("Done with all radio commands.");
+    printEvent("Done with all radio commands.");
     serialMessage = "";
     beginTime = -1;
   }
@@ -231,7 +221,6 @@ bool checkLaunch() {
     accelAverage += accelerationQueue[i].magnitude();
   }
   accelAverage /= size;
-  storeData("accelAverage", accelAverage);
   return (accelAverage > ACCELERATION_LAUNCH_TOLERANCE == true);
 }
 
@@ -265,26 +254,7 @@ bool checkLanding() {
   accelAverage /= size;
   gyroAverage /= size;
   accelAverage -= 9.8;
-  storeData("accelAverage", accelAverage);
-  storeData("gyroAverage", gyroAverage);
-  Serial.println(accelAverage);
-  Serial.println(gyroAverage);
-  Serial.println(accelAverage < ACCELERATION_LAND_TOLERANCE && gyroAverage < GYRO_LAND_TOLERANCE);
   return (accelAverage < ACCELERATION_LAND_TOLERANCE && gyroAverage < GYRO_LAND_TOLERANCE);
-}
-
-void recordFlightData() {
-  updateLanding();
-  float accelAverage = 0;
-  float gyroAverage = 0;
-  for (int i = 0; i < size; i++) {
-    accelAverage += accelerationQueue[i].magnitude();
-    gyroAverage += gyroQueue[i].magnitude();
-  }
-  accelAverage /= size;
-  gyroAverage /= size;
-  storeData("accelAverage", accelAverage);
-  storeData("gyroAverage", gyroAverage);
 }
 
 void updateSerialMessage(){
@@ -362,10 +332,6 @@ bool checkRoll() {
     float yy2 = q2.y() * q2.y();
     float roll2 = atan2(2 * (q2.w() * q2.x() + q2.y() * q2.z()), 1 - 2 * (q2.x() * q2.x() + yy2));
     float initialX2Angle = 57.2958 * roll2;
-    storeData("roll", roll);
-    storeData("roll2", roll2);
-    storeData("currentRoll", currentRoll);
-    storeData("prevRoll", prevRoll);
 
     // Within .5 radians of the two BNO055 roll values
     if (roll2 - .5 < roll && roll < roll2 + .5) {
@@ -377,9 +343,9 @@ bool checkRoll() {
       }
     }
     else if (countCheck == 5) { // If a value can not come to a consesus within 5 polls, override the auxillary mechanism
-      storeEvent("Both IMU have different data.");
+      printEvent("Both IMU have different data.");
       if (prevRoll - 10 < currentRoll && currentRoll < prevRoll + 10) {
-        storeEvent("prevRoll is whithin 10 degrees of currentRoll.");
+        printEvent("prevRoll is whithin 10 degrees of currentRoll.");
         return true;
       }
     }
@@ -408,42 +374,6 @@ void spinCameraStepper(int angle) {
   }
 }
 
-void appendFile(fs::FS &fs, const char *path, const char *message) {
-  File file = fs.open(path, FILE_APPEND);
-  if (!file) {
-    Serial.println("Failed to open file for appending");
-    return;
-  }
-  if (!file.print(message)) {
-    Serial.println("Append failed");
-  }
-  file.close();
-}
-
-void storeEvent(const char *event) {
-  DateTime now = rtc.now();
-  char bufferString[] = "DD MMM hh:mm:ss";
-  char *timeString = now.toString(bufferString);
-  appendFile(SD, "/payload.txt", timeString);
-  appendFile(SD, "/payload.txt", "  -  ");
-  appendFile(SD, "/payload.txt", event);
-  appendFile(SD, "/payload.txt", "\n");
-}
-
-void storeData(const char *type, float data) {
-  DateTime now = rtc.now();
-  char bufferString[] = "DD MMM hh:mm:ss";
-  char *timeString = now.toString(bufferString);
-  char dataBuffer[64];
-  int ret = snprintf(dataBuffer, sizeof dataBuffer, "%f", data);
-  appendFile(SD, "/data.txt", timeString);
-  appendFile(SD, "/data.txt", "  -  ");
-  appendFile(SD, "/data.txt", type);
-  appendFile(SD, "/data.txt", "  -  ");
-  appendFile(SD, "/data.txt", dataBuffer);
-  appendFile(SD, "/data.txt", "\n");
-}
-
 void printEvent(const char *event) {
   DateTime now = rtc.now();
   char bufferString[] = "DD MMM hh:mm:ss";
@@ -451,11 +381,10 @@ void printEvent(const char *event) {
   Serial.print(timeString);
   Serial.print(" - ");
   Serial.println(event);
-  storeEvent(event);
 }
 
 void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3."
-  storeEvent("Interpreting radio string");
+  printEvent("Interpreting radio string");
   message.toUpperCase();
   int numberCommands = 0;
   int commands[100];
@@ -467,7 +396,7 @@ void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B
     message.remove(location, 2);
   }
   if(numberCommands == 0)
-    storeEvent("No commands found in serial message.");
+    printEvent("No commands found in serial message.");
   for (int i = 0; i < numberCommands; i++) {
     executeRadioCommand(commands[i]);
     delay(3000);
@@ -484,13 +413,13 @@ int findFirstRadioCommand(String message) {
       location = potentialLocation;
     }
   }
-
   return location;
 }
 
 
 void executeRadioCommand(int command) {
-  String string = "I am executing command " + String(command);
+  char string[100];
+  snprintf(string, 100, "I am executing command %d!", command);
   printEvent(string);
   switch (command) {
     case 1:
