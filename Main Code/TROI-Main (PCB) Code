@@ -146,9 +146,10 @@ void setup() {
   // wait in standby mode and loop until landed
   printEvent("Standing By for Landing");
   updateLanding();
-  while (!checkLanding()) {
+  for(int i = 0; i < 10 * 60 * 20; i++){
+    if(checkLanding()) break;
     delay(100);
-    updateLanding();
+    updateLanding();  
   }
   printEvent("We Have Landed!");
   delay(1000);
