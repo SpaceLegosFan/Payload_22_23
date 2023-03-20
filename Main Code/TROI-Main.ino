@@ -426,12 +426,12 @@ bool checkRoll() {
       address++;
       EEPROM.commit();
       // Store prevRoll
-      EEPROM.writeFloat(address, roll);
-      address += sizeof(roll);                                                                                                         
+      EEPROM.writeFloat(address, prevRoll);
+      address += sizeof(prevRoll);                                                                                                         
       EEPROM.commit();
       // Store currentRoll
-      EEPROM.writeFloat(address, roll2);  
-      address += sizeof(roll2);                                                                                                                                                                                                                 
+      EEPROM.writeFloat(address, currentRoll);  
+      address += sizeof(currentRoll);                                                                                                                                                                                                                 
       EEPROM.commit();
       // Store countCheck
       EEPROM.put(address, countCheck);
