@@ -229,9 +229,11 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   Serial.println(myData.command);
 
   switch(myData.command) {
+    case 0:
+      sensorRegistry();
+      break;
     case 3:
       take_picture();
-      sensorRegistry();
       break;
     case 4:
       color_2_gray(s);
