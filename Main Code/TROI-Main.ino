@@ -138,7 +138,7 @@ void setup() {
   printEvent("Setup done!");
 
   //Setup State, 0 = Failed, 1 = Success
-  EEPROM.put(0,1);                                                                                                            
+  EEPROM.write(0,1);                                                                                                            
   EEPROM.commit();
 
   printEvent("Standing By for Launch.");
@@ -155,7 +155,7 @@ void setup() {
   printEvent("We Have Launched!");
 
   //Launched State, 0 = Failed, 1 = Success
-  EEPROM.put(1,1);                                                                                                            
+  EEPROM.write(1,1);                                                                                                            
   EEPROM.commit();
 
   printEvent("Standing By for Launch.");
@@ -233,7 +233,7 @@ void setup() {
   printEvent("Finished deploying vertically.");
 
   // Camera Deployed, 0 = Failed, 1 = Success
-  EEPROM.put(address,1);
+  EEPROM.write(address,1);
   address++;                                                                                                                                                                                                                     
   EEPROM.commit();
 
@@ -422,7 +422,9 @@ bool checkRoll() {
         printEvent("prevRoll is within 10 degrees of currentRoll.");
 
       // IMU Agrees that prevRoll is same as last currentRoll, 0 = Failed, 1 = Success
-      EEPROM.write(7,1); 
+      EEPROM.write(address,1); 
+      address++;
+      EEPROM.commit();
       // Store prevRoll
       EEPROM.writeFloat(address, roll);
       address += sizeof(roll);                                                                                                         
@@ -446,7 +448,9 @@ bool checkRoll() {
 
         // If all systems are working as intended, following values should be 0.
         // IMUs fail to agree, 0 = Failed, 1 = Success
-        EEPROM.put(10,1); 
+        EEPROM.write(address,1);
+        address++;
+        EEPROM.commit(); 
         // Store prevRoll
         EEPROM.writeFloat(11, roll);
         address += sizeof(roll);                                                                                                         
