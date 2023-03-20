@@ -45,6 +45,10 @@ void setup() {
   Serial.print("Roll2 Value: "); Serial.println(EEPROM.readFloat(address), 4);
   address += sizeof(float);
 
+  // Roll Agree State
+  Serial.print("Roll Agree State: "); Serial.println(EEPROM.read(address));
+  address++;
+
   // prevRoll Value
   Serial.print("prevRoll Value: "); Serial.println(EEPROM.readFloat(address), 4);
   address += sizeof(float);
