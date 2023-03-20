@@ -13,7 +13,7 @@ TROI ESP32-Main Code
 #include <WiFi.h>
 #include "FS.h"
 #include "RTClib.h"
-#define EEPROM_SIZE 12
+#define EEPROM_SIZE 512
 #define I2C_SDA 21 // SDA = 21
 #define I2C_SCL 22 // SCL = 22
 #define I2C_SDA2 32 // SDA2 = 32
@@ -39,6 +39,9 @@ float cameraAngle = 0.0;
 imu::Vector<3> *accelerationQueue = new imu::Vector<3>[10];
 imu::Vector<3> *gyroQueue = new imu::Vector<3>[10];
 int size = 0;
+
+// Data storing addressing
+int address = 5;
 
 // Motor Values
 float travel_distance = 7.5;
@@ -172,7 +175,7 @@ void setup() {
   printEvent("Standing By for Landing");
 
   //Seconds Passed, Waiting for Landing , 0 = Failed, 1 = Success
-  EEPROM.put(2,1);                                                                                                            
+  EEPROM.write(2,1);                                                                                                            
   EEPROM.commit();
 
   updateLanding();
@@ -184,7 +187,7 @@ void setup() {
   printEvent("We Have Landed!");
 
   //Landing Detection , 0 = Failed, 1 = Success
-  EEPROM.put(3,1);                                                                                                            
+  EEPROM.write(3,1);                                                                                                            
   EEPROM.commit();
 
   delay(1000);
@@ -195,7 +198,8 @@ void setup() {
   printEvent("Check Roll Finished.");
 
   // System has agreed on check roll, 0 = Failed, 1 = Success
-  EEPROM.put(4,1);                                                                                                            
+  EEPROM.write(address,1);
+  address++;                                                                                                             
   EEPROM.commit();
 
   imu::Quaternion q = bno.getQuat();
@@ -209,14 +213,16 @@ void setup() {
   delay(500);
 
   // What degree did system land?, 0 = Failed to commit
-  EEPROM.writeFloat(5, initialXAngle);                                                                                                            
+  EEPROM.writeFloat(address, initialXAngle);  
+  address += sizeof(initialXAngle);                                                                                                          
   EEPROM.commit();
 
   leadScrewRun();
   printEvent("Done deploying horizontally.");
 
   // Lead Screw Deployed, 0 = Failed, 1 = Success
-  EEPROM.put(6,1);                                                                                                            
+  EEPROM.write(address,1);
+  address++;                                                                                                          
   EEPROM.commit();
 
   delay(2000);
@@ -227,7 +233,8 @@ void setup() {
   printEvent("Finished deploying vertically.");
 
   // Camera Deployed, 0 = Failed, 1 = Success
-  EEPROM.put(7,1);                                                                                                            
+  EEPROM.put(address,1);
+  address++;                                                                                                                                                                                                                     
   EEPROM.commit();
 
   printEvent("Standing By for Camera commands...");
@@ -250,7 +257,8 @@ void loop() {
     printEvent("Done with all radio commands.");
 
     // Interpreted Radio Commands, 0 = Failed, 1 = Success
-    EEPROM.put(8,1);                                                                                                            
+    EEPROM.write(address,1);
+    address++;                                                                                                                                                                                                                     
     EEPROM.commit();
 
     serialMessage = "";
@@ -395,9 +403,39 @@ bool checkRoll() {
     // Within .5 radians of the two BNO055 roll values
     if (roll2 - .5 < roll && roll < roll2 + .5) {
       printEvent("Both IMUs have same data (within 0.5 radians).");
+       
+      // Both IMUs Agree, 0 = Failed, 1 = Success
+      EEPROM.write(4,1);
+      EEPROM.commit(); 
+
+      // Store Final Roll
+      EEPROM.writeFloat(5, roll);
+      address += sizeof(roll);
+      EEPROM.commit();
+      // Store Final Roll 2
+      EEPROM.writeFloat(address, roll2);
+      address += sizeof(roll2);                                                                                                         
+      EEPROM.commit();
+
       // Within 10 degrees of the two roll values on the first BNO055
       if (prevRoll - 10 < currentRoll && currentRoll < prevRoll + 10) {
         printEvent("prevRoll is within 10 degrees of currentRoll.");
+
+      // IMU Agrees that prevRoll is same as last currentRoll, 0 = Failed, 1 = Success
+      EEPROM.write(7,1); 
+      // Store prevRoll
+      EEPROM.writeFloat(address, roll);
+      address += sizeof(roll);                                                                                                         
+      EEPROM.commit();
+      // Store currentRoll
+      EEPROM.writeFloat(address, roll2);  
+      address += sizeof(roll2);                                                                                                                                                                                                                 
+      EEPROM.commit();
+      // Store countCheck
+      EEPROM.put(address, countCheck);
+      address += sizeof(countCheck);                                                                                                                                                                                                                 
+      EEPROM.commit();
+
         return true;
       }
     }
@@ -405,6 +443,19 @@ bool checkRoll() {
       printEvent("Both IMU have different data.");
       if (prevRoll - 10 < currentRoll && currentRoll < prevRoll + 10) {
         printEvent("prevRoll is within 10 degrees of currentRoll.");
+
+        // If all systems are working as intended, following values should be 0.
+        // IMUs fail to agree, 0 = Failed, 1 = Success
+        EEPROM.put(10,1); 
+        // Store prevRoll
+        EEPROM.writeFloat(11, roll);
+        address += sizeof(roll);                                                                                                         
+        EEPROM.commit();
+        // Store currentRoll
+        EEPROM.writeFloat(12, roll2);
+        address += sizeof(roll2);                                                                                                                                                                                                                
+        EEPROM.commit();
+
         return true;
       }
     }
@@ -455,6 +506,16 @@ void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B
     message.remove(location, 2);
     commands[numberCommands] = 0;
   }
+
+  int addressIndex = address;
+  for (int i = 0; i < 30; i++) 
+  {
+    EEPROM.write(addressIndex, commands[i] >> 8);
+    EEPROM.write(addressIndex + 1, commands[i] & 0xFF);
+    addressIndex += 2;
+
+  }
+
   if(numberCommands == 0)
     printEvent("No commands found in serial message.");
   for (int i = 0; i < numberCommands; i++) {
@@ -501,6 +562,8 @@ void executeRadioCommand(int command) {
       break;
   }
 }
+
+
 
 
 void sendData(int commandData) {
