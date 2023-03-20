@@ -453,6 +453,7 @@ void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B
     commands[numberCommands] = message.substring(location+1, location+2).toInt();
     numberCommands++;
     message.remove(location, 2);
+    commands[numberCommands] = 0;
   }
   if(numberCommands == 0)
     printEvent("No commands found in serial message.");
