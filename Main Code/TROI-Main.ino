@@ -9,9 +9,11 @@ TROI ESP32-Main Code
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
 #include <esp_now.h>
+#include <EEPROM.h>
 #include <WiFi.h>
 #include "FS.h"
 #include "RTClib.h"
+#define EEPROM_SIZE 12
 #define I2C_SDA 21 // SDA = 21
 #define I2C_SCL 22 // SCL = 22
 #define I2C_SDA2 32 // SDA2 = 32
@@ -69,6 +71,15 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 void setup() {
   Serial.begin(38400);
 
+  // Initialize EEPROM with predefined size
+  
+  if (!EEPROM.begin(EEPROM_SIZE)){                                  
+      Serial.println("Failed to initialise EEPROM...");
+      ESP.restart();
+    } else {
+      Serial.println("Success to initialise EEPROM...");
+    }
+
   // I2C Sensors
   I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
   I2CSensors2.begin(I2C_SDA2, I2C_SCL2, 100000);
@@ -78,17 +89,19 @@ void setup() {
   // RTC Clock
   if (!rtc.begin(&I2CSensors)) {
     Serial.println("Couldn't find RTC");
+    ESP.restart();
+
   }
   printEvent("RTC Clock Initialized.");
 
   if (!bno.begin()) {
     printEvent("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
-    return;
+    ESP.restart();
   }
   printEvent("BNO is initialized.");
   if (!bno2.begin()) {
     printEvent("Ooops, no BNO055-2 detected ... Check your wiring or I2C ADDR!");
-    return;
+    ESP.restart();
   }
   printEvent("BNO2 is initialized.");
   bno.setExtCrystalUse(true);
@@ -98,7 +111,7 @@ void setup() {
   WiFi.mode(WIFI_STA);
   if (esp_now_init() != ESP_OK) {
     printEvent("Error initializing ESP-NOW.");
-    return;
+    ESP.restart();
   }
   esp_now_register_send_cb(OnDataSent);
   memcpy(peerInfo.peer_addr, broadcastAddress, 6);
@@ -106,8 +119,9 @@ void setup() {
   peerInfo.encrypt = false;
   if (esp_now_add_peer(&peerInfo) != ESP_OK) {
     printEvent("Failed to add peer.");
-    return;
+    ESP.restart();
   }
+
   printEvent("ESP-NOW setup finished.");
 
   // Set stepper motor speeds/accelerations
@@ -119,6 +133,11 @@ void setup() {
   CameraStepper.setSpeed(200);
 
   printEvent("Setup done!");
+
+  //Setup State, 0 = Failed, 1 = Success
+  EEPROM.put(0,1);                                                                                                            
+  EEPROM.commit();
+
   printEvent("Standing By for Launch.");
 
   updateLaunch();
@@ -132,6 +151,12 @@ void setup() {
   }
   printEvent("We Have Launched!");
 
+  //Launched State, 0 = Failed, 1 = Success
+  EEPROM.put(1,1);                                                                                                            
+  EEPROM.commit();
+
+  printEvent("Standing By for Launch.");
+
   // Wait a minimum of 60 seconds before standing by for landing. Record flight data during this.
   for (int i = 1; i <= 10 * 90; i++) {
     if (i % 100 == 0){
@@ -143,8 +168,13 @@ void setup() {
     delay(100);
   }
 
-  // wait in standby mode and loop until landed
+  // Wait in standby mode and loop until landed
   printEvent("Standing By for Landing");
+
+  //Seconds Passed, Waiting for Landing , 0 = Failed, 1 = Success
+  EEPROM.put(2,1);                                                                                                            
+  EEPROM.commit();
+
   updateLanding();
   for(int i = 0; i < 10 * 60 * 20; i++){
     if(checkLanding()) break;
@@ -152,12 +182,21 @@ void setup() {
     updateLanding();  
   }
   printEvent("We Have Landed!");
+
+  //Landing Detection , 0 = Failed, 1 = Success
+  EEPROM.put(3,1);                                                                                                            
+  EEPROM.commit();
+
   delay(1000);
 
   // After landing, check to make sure the payload tube is not rolling
   printEvent("Standing by for checkRoll.");
   checkRoll();
   printEvent("Check Roll Finished.");
+
+  // System has agreed on check roll, 0 = Failed, 1 = Success
+  EEPROM.put(4,1);                                                                                                            
+  EEPROM.commit();
 
   imu::Quaternion q = bno.getQuat();
   float yy = q.y() * q.y();
@@ -169,14 +208,28 @@ void setup() {
   printEvent(buffer);
   delay(500);
 
+  // What degree did system land?, 0 = Failed to commit
+  EEPROM.writeFloat(5, initialXAngle);                                                                                                            
+  EEPROM.commit();
+
   leadScrewRun();
   printEvent("Done deploying horizontally.");
+
+  // Lead Screw Deployed, 0 = Failed, 1 = Success
+  EEPROM.put(6,1);                                                                                                            
+  EEPROM.commit();
+
   delay(2000);
 
-  // deploy vertically
+  // Deploy vertically
   printEvent("Deploying vertically.");
   spinCameraStepper(-60);
   printEvent("Finished deploying vertically.");
+
+  // Camera Deployed, 0 = Failed, 1 = Success
+  EEPROM.put(7,1);                                                                                                            
+  EEPROM.commit();
+
   printEvent("Standing By for Camera commands...");
 	serialMessage = "";
 }
@@ -195,6 +248,11 @@ void loop() {
     printEvent("Executing Radio Commands");
     interpretRadioString(serialMessage);
     printEvent("Done with all radio commands.");
+
+    // Interpreted Radio Commands, 0 = Failed, 1 = Success
+    EEPROM.put(8,1);                                                                                                            
+    EEPROM.commit();
+
     serialMessage = "";
     beginTime = -1;
   }
@@ -339,14 +397,14 @@ bool checkRoll() {
       printEvent("Both IMUs have same data (within 0.5 radians).");
       // Within 10 degrees of the two roll values on the first BNO055
       if (prevRoll - 10 < currentRoll && currentRoll < prevRoll + 10) {
-        printEvent("prevRoll is whithin 10 degrees of currentRoll.");
+        printEvent("prevRoll is within 10 degrees of currentRoll.");
         return true;
       }
     }
     else if (countCheck == 5) { // If a value can not come to a consesus within 5 polls, override the auxillary mechanism
       printEvent("Both IMU have different data.");
       if (prevRoll - 10 < currentRoll && currentRoll < prevRoll + 10) {
-        printEvent("prevRoll is whithin 10 degrees of currentRoll.");
+        printEvent("prevRoll is within 10 degrees of currentRoll.");
         return true;
       }
     }
