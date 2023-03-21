@@ -51,7 +51,7 @@ float num_deployment_LeadScrew_steps = DEPLOYSTEPS;
 // I2C RTC Clock Interface
 RTC_DS3231 rtc;
 
-// ESP-NOW - THIS NEEDS TO BE CHANGED, MAC ADDRESS NOT VALID
+// ESP-NOW - THIS NEEDS TO BE CHANGED, MAC ADDRESS CURRENTLY VALID
 uint8_t broadcastAddress[] = {0xC8, 0xF0, 0x9E, 0x4F, 0x69, 0xD0};
 typedef struct struct_message{
   char timestamp[32];
