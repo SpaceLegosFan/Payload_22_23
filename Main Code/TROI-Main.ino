@@ -80,9 +80,6 @@ void setup() {
       Serial.println("Failed to initialise EEPROM...");
       ESP.restart();
     } else {
-      for (int i = 0 ; i < EEPROM.length() ; i++) {
-  	    EEPROM.write(i, 0);
-	     }
       Serial.println("Success to initialise EEPROM...");
     }
 
@@ -365,6 +362,12 @@ void checkSerialMessage() {
       num_deployment_LeadScrew_steps = 50;
       serialMessage = "run motor";
       num_deployment_LeadScrew_steps = temp;
+    }
+    else if(serialMessage == "reset storage") {
+      for (int i = 0 ; i < EEPROM.length() ; i++) {
+  	    EEPROM.write(i, 0);
+	     }
+      Serial.println("Flashed EEPROM to 0!");
     }
     else if (serialMessage.indexOf("steps =") != -1)
       num_deployment_LeadScrew_steps = serialMessage.substring(serialMessage.indexOf("=") + 2).toInt();
