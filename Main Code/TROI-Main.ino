@@ -80,6 +80,9 @@ void setup() {
       Serial.println("Failed to initialise EEPROM...");
       ESP.restart();
     } else {
+      for (int i = 0 ; i < EEPROM.length() ; i++) {
+  	    EEPROM.write(i, 0);
+	     }
       Serial.println("Success to initialise EEPROM...");
     }
 
