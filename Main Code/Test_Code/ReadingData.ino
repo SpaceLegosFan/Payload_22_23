@@ -1,6 +1,6 @@
 #include <EEPROM.h>
 
-int address = 5;
+int address = 0;
 int addressIndex;
 
 void readIntArrayFromEEPROM(int addressing, int numbers[], int arraySize)
@@ -17,28 +17,30 @@ void setup() {
 
   Serial.begin(38400);
 
+  EEPROM.begin(512);
+
   // Setup Check
-  int setupState = EEPROM.read(0);
-  Serial.print("Setup State: "); Serial.println(setupState);
+  Serial.print("Setup State: ");  Serial.println(EEPROM.readBool(address));
+  address += sizeof(bool);
 
   // Launch Check
-  int launchState = EEPROM.read(1);
-  Serial.print("Launch State: "); Serial.println(launchState);
+  Serial.print("Launch State: ");   Serial.println(EEPROM.readBool(address));
+  address += sizeof(bool);
 
   // Waiting for Landing
-  int waitLandState = EEPROM.read(2);
-  Serial.print("Waiting for Landing State: "); Serial.println(waitLandState);
+  Serial.print("Waiting for Landing State: "); Serial.println(EEPROM.readBool(address));
+  address += sizeof(bool);
 
   // Landing Check
-  int landingState = EEPROM.read(3);
-  Serial.print("Landing State: "); Serial.println(landingState);
+  Serial.print("Landing State: "); Serial.println(EEPROM.readBool(address));
+   address += sizeof(bool);
 
   // IMUs Agree
-  int agreeIMUState = EEPROM.read(4);
-  Serial.print("IMU Agree State: "); Serial.println(agreeIMUState);
-
+  Serial.print("IMU Agree State: "); Serial.println(EEPROM.readBool(address));
+  address += sizeof(bool);
+  
   // Roll1 Value
-  Serial.print("Roll1 Value: "); Serial.println(EEPROM.readFloat(5), 4);
+  Serial.print("Roll1 Value: "); Serial.println(EEPROM.readFloat(address), 4);
   address += sizeof(float);
 
   // Roll2 Value
@@ -46,8 +48,8 @@ void setup() {
   address += sizeof(float);
 
   // Roll Agree State
-  Serial.print("Roll Agree State: "); Serial.println(EEPROM.read(address));
-  address++;
+  Serial.print("Roll Agree State: "); Serial.println(EEPROM.readBool(address));
+  address += sizeof(bool);
 
   // prevRoll Value
   Serial.print("prevRoll Value: "); Serial.println(EEPROM.readFloat(address), 4);
@@ -58,25 +60,24 @@ void setup() {
   address += sizeof(float);
 
   // Count Check Value
-  int countCheck = EEPROM.read(address);
-  Serial.print("countCheck Value: "); Serial.println(countCheck);
+  Serial.print("countCheck Value: "); Serial.println(EEPROM.readInt(address));
   address += sizeof(int);
 
   // checkRoll Agree
-  Serial.print("checkRoll State: "); Serial.println(EEPROM.read(address));
-  address++;
+  Serial.print("checkRoll State: "); Serial.println(EEPROM.readBool(address));
+  address += sizeof(bool);
 
   // landingAngle Value
   Serial.print("landingAngle Value: "); Serial.println(EEPROM.readFloat(address), 4);
   address += sizeof(float);
 
   // Lead Screw State
-  Serial.print("Lead Screw State: "); Serial.println(EEPROM.read(address));
-  address++;
+  Serial.print("Lead Screw State: "); Serial.println(EEPROM.readBool(address));
+  address += sizeof(bool);
 
   // Camera Stepper State
-  Serial.print("Camera Stepper State: "); Serial.println(EEPROM.read(address));
-  address++;
+  Serial.print("Camera Stepper State: "); Serial.println(EEPROM.readBool(address));
+  address += sizeof(bool);
 
   // Camera Commands
   Serial.print("Camera Commands: ");
@@ -96,11 +97,8 @@ void setup() {
   addressIndex++;
   
   // Interpret Radio String State
-  Serial.print("Radio String State: "); Serial.println(EEPROM.read(addressIndex));
+  Serial.print("Radio String State: "); Serial.println(EEPROM.readBool(addressIndex));
   
-
-
-
 
 }
 
