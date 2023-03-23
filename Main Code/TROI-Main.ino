@@ -26,7 +26,7 @@ TROI ESP32-Main Code
 #define ACCELERATION_LAND_TOLERANCE .3
 #define GYRO_LAND_TOLERANCE 5
 #define ACCELERATION_LAUNCH_TOLERANCE 30
-#define DEPLOYSTEPS 5200
+#define DEPLOYSTEPS 5700
 
 TwoWire I2CSensors = TwoWire(0);
 TwoWire I2CSensors2 = TwoWire(1);
@@ -40,8 +40,8 @@ imu::Vector<3> *accelerationQueue = new imu::Vector<3>[10];
 imu::Vector<3> *gyroQueue = new imu::Vector<3>[10];
 int size = 0;
 
-// Data storing addressing
-int address = 5;
+// Data Storage
+int address = 0;
 
 // Motor Values
 float travel_distance = 7.5;
@@ -138,7 +138,8 @@ void setup() {
   printEvent("Setup done!");
 
   //Setup State, 0 = Failed, 1 = Success
-  EEPROM.write(0,1);                                                                                                            
+  EEPROM.writeBool(address, true);
+  address += sizeof(bool);                                                                                                        
   EEPROM.commit();
 
   printEvent("Standing By for Launch.");
@@ -155,7 +156,8 @@ void setup() {
   printEvent("We Have Launched!");
 
   //Launched State, 0 = Failed, 1 = Success
-  EEPROM.write(1,1);                                                                                                            
+  EEPROM.writeBool(address, true);
+  address += sizeof(bool);                                                                                                                                                                                                                   
   EEPROM.commit();
 
   printEvent("Standing By for Launch.");
@@ -175,7 +177,8 @@ void setup() {
   printEvent("Standing By for Landing");
 
   //Seconds Passed, Waiting for Landing , 0 = Failed, 1 = Success
-  EEPROM.write(2,1);                                                                                                            
+  EEPROM.writeBool(address, true);
+  address += sizeof(bool);                                                                                                                                                                                                                    
   EEPROM.commit();
 
   updateLanding();
@@ -187,7 +190,8 @@ void setup() {
   printEvent("We Have Landed!");
 
   //Landing Detection , 0 = Failed, 1 = Success
-  EEPROM.write(3,1);                                                                                                            
+  EEPROM.writeBool(address, true);
+  address += sizeof(bool);                                                                                                                                                                                                                    
   EEPROM.commit();
 
   delay(1000);
@@ -198,8 +202,8 @@ void setup() {
   printEvent("Check Roll Finished.");
 
   // System has agreed on check roll, 0 = Failed, 1 = Success
-  EEPROM.write(address,1);
-  address++;                                                                                                             
+  EEPROM.writeBool(address, true);
+  address += sizeof(bool);                                                                                                                                                                                                                     
   EEPROM.commit();
 
   imu::Quaternion q = bno.getQuat();
@@ -221,8 +225,8 @@ void setup() {
   printEvent("Done deploying horizontally.");
 
   // Lead Screw Deployed, 0 = Failed, 1 = Success
-  EEPROM.write(address,1);
-  address++;                                                                                                          
+  EEPROM.writeBool(address, true);
+  address += sizeof(bool);                                                                                                                                                                                                                                                                                                                            
   EEPROM.commit();
 
   delay(2000);
@@ -233,8 +237,8 @@ void setup() {
   printEvent("Finished deploying vertically.");
 
   // Camera Deployed, 0 = Failed, 1 = Success
-  EEPROM.write(address,1);
-  address++;                                                                                                                                                                                                                     
+  EEPROM.writeBool(address, true);
+  address += sizeof(bool);                                                                                                                                                                                                                    
   EEPROM.commit();
 
   printEvent("Standing By for Camera commands...");
@@ -257,8 +261,8 @@ void loop() {
     printEvent("Done with all radio commands.");
 
     // Interpreted Radio Commands, 0 = Failed, 1 = Success
-    EEPROM.write(address,1);
-    address++;                                                                                                                                                                                                                     
+    EEPROM.writeBool(address, true);
+    address += sizeof(bool);                                                                                                                                                                                                                                                                                                                                                                                                                                         
     EEPROM.commit();
 
     serialMessage = "";
@@ -411,11 +415,12 @@ bool checkRoll() {
       printEvent("Both IMUs have same data (within 0.5 radians).");
        
       // Both IMUs Agree, 0 = Failed, 1 = Success
-      EEPROM.write(4,1);
+      EEPROM.writeBool(address, true);
+      address += sizeof(bool);                                                                                                                                                                                                                    
       EEPROM.commit(); 
 
       // Store Final Roll
-      EEPROM.writeFloat(5, roll);
+      EEPROM.writeFloat(address, roll);
       address += sizeof(roll);
       EEPROM.commit();
       // Store Final Roll 2
@@ -428,8 +433,8 @@ bool checkRoll() {
         printEvent("prevRoll is within 10 degrees of currentRoll.");
 
       // IMU Agrees that prevRoll is same as last currentRoll, 0 = Failed, 1 = Success
-      EEPROM.write(address,1); 
-      address++;
+      EEPROM.writeBool(address, true);
+      address += sizeof(bool);                                                                                                                                                                                                                    
       EEPROM.commit();
       // Store prevRoll
       EEPROM.writeFloat(address, prevRoll);
@@ -454,15 +459,15 @@ bool checkRoll() {
 
         // If all systems are working as intended, following values should be 0.
         // IMUs fail to agree, 0 = Failed, 1 = Success
-        EEPROM.write(address,1);
-        address++;
+        EEPROM.writeBool(address, true);
+        address += sizeof(bool);                                                                                                                                                                                                                    
         EEPROM.commit(); 
         // Store prevRoll
-        EEPROM.writeFloat(11, roll);
+        EEPROM.writeFloat(address, roll);
         address += sizeof(roll);                                                                                                         
         EEPROM.commit();
         // Store currentRoll
-        EEPROM.writeFloat(12, roll2);
+        EEPROM.writeFloat(address, roll2);
         address += sizeof(roll2);                                                                                                                                                                                                                
         EEPROM.commit();
 
