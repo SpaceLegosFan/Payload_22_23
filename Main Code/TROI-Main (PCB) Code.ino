@@ -9,13 +9,15 @@ TROI ESP32-Main Code
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
 #include <esp_now.h>
+#include <EEPROM.h>
 #include <WiFi.h>
 #include "FS.h"
 #include "RTClib.h"
-#define I2C_SDA 21 // SDA = 21
-#define I2C_SCL 22 // SCL = 22
-#define I2C_SDA2 32 // SDA2 = 32
-#define I2C_SCL2 33 // SCL2 = 33
+#define EEPROM_SIZE 512
+#define I2C_SDA 21
+#define I2C_SCL 22
+#define I2C_SDA2 32
+#define I2C_SCL2 33
 #define motorInterfaceType 1
 #define leadDIR 26
 #define leadSTEP 25
@@ -38,17 +40,18 @@ imu::Vector<3> *accelerationQueue = new imu::Vector<3>[10];
 imu::Vector<3> *gyroQueue = new imu::Vector<3>[10];
 int size = 0;
 
+// Data Storage
+int address = 0;
+
 // Motor Values
-float travel_distance = 7.5;
-float travel_distance_per_full_step = 0.00125;
 float num_deployment_LeadScrew_steps = DEPLOYSTEPS;
 
 // I2C RTC Clock Interface
 RTC_DS3231 rtc;
 
-// ESP-NOW - THIS NEEDS TO BE CHANGED, MAC ADDRESS NOT VALID
-uint8_t broadcastAddress[] = {0xC8, 0xF0, 0x9E, 0x4F, 0x69, 0xD0};
-typedef struct struct_message{
+// ESP-NOW - THIS NEEDS TO BE CHANGED, MAC ADDRESS CURRENTLY VALID
+uint8_t broadcastAddress[] = {0xC8, 0xF0, 0x9E, 0x9D, 0x46, 0x40};
+typedef struct{
   char timestamp[32];
   int command;
 } struct_message;
@@ -61,6 +64,8 @@ int buflen = 0;                  // Length of buffered ata
 String serialMessage = "";
 int beginTime = -1;
 
+int commands[100];
+
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print("\r\nLast Packet Send Status:\t");
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
@@ -68,6 +73,14 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 
 void setup() {
   Serial.begin(38400);
+
+  // Initialize EEPROM with predefined size
+  if (!EEPROM.begin(EEPROM_SIZE)) {
+    Serial.println("Failed to initialise EEPROM...");
+    ESP.restart();
+  } else {
+    Serial.println("Success to initialise EEPROM...");
+  }
 
   // I2C Sensors
   I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
@@ -78,27 +91,28 @@ void setup() {
   // RTC Clock
   if (!rtc.begin(&I2CSensors)) {
     Serial.println("Couldn't find RTC");
+    ESP.restart();
   }
   printEvent("RTC Clock Initialized.");
 
   if (!bno.begin()) {
     printEvent("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
-    return;
+    ESP.restart();
   }
   printEvent("BNO is initialized.");
   if (!bno2.begin()) {
     printEvent("Ooops, no BNO055-2 detected ... Check your wiring or I2C ADDR!");
-    return;
+    ESP.restart();
   }
-  printEvent("BNO2 is initialized.");
   bno.setExtCrystalUse(true);
   bno2.setExtCrystalUse(true);
+  printEvent("BNO2 is initialized.");
 
   // ESP-NOW setup
   WiFi.mode(WIFI_STA);
   if (esp_now_init() != ESP_OK) {
     printEvent("Error initializing ESP-NOW.");
-    return;
+    ESP.restart();
   }
   esp_now_register_send_cb(OnDataSent);
   memcpy(peerInfo.peer_addr, broadcastAddress, 6);
@@ -106,21 +120,24 @@ void setup() {
   peerInfo.encrypt = false;
   if (esp_now_add_peer(&peerInfo) != ESP_OK) {
     printEvent("Failed to add peer.");
-    return;
+    ESP.restart();
   }
   printEvent("ESP-NOW setup finished.");
 
   // Set stepper motor speeds/accelerations
-  LeadScrewStepper.setMaxSpeed(400); // 800
+  LeadScrewStepper.setMaxSpeed(400);
   LeadScrewStepper.setAcceleration(1000);
   LeadScrewStepper.setSpeed(400);
   CameraStepper.setMaxSpeed(200);
-  CameraStepper.setAcceleration(500);
+  CameraStepper.setAcceleration(1000);
   CameraStepper.setSpeed(200);
 
   printEvent("Setup done!");
-  printEvent("Standing By for Launch.");
 
+  //Setup State, 0 = Failed, 1 = Success
+  writeTrue();
+
+  printEvent("Standing By for Launch.");
   updateLaunch();
   while (!checkLaunch()) {
     delay(100);
@@ -132,8 +149,12 @@ void setup() {
   }
   printEvent("We Have Launched!");
 
+  //Launched State, 0 = Failed, 1 = Success
+  writeTrue();
+  
+  printEvent("Standing By for Launch.");
   // Wait a minimum of 60 seconds before standing by for landing. Record flight data during this.
-  for (int i = 1; i <= 10 * 90; i++) {
+  for (int i = 1; i <= 10 * 20; i++) {
     if (i % 100 == 0){
       char timeMessage[50];
       snprintf(timeMessage, 50, "We are %d seconds into flight!", i/10);
@@ -143,8 +164,12 @@ void setup() {
     delay(100);
   }
 
-  // wait in standby mode and loop until landed
+  // Wait in standby mode and loop until landed
   printEvent("Standing By for Landing");
+
+  //Seconds Passed, Waiting for Landing , 0 = Failed, 1 = Success
+  writeTrue();
+
   updateLanding();
   for(int i = 0; i < 10 * 60 * 20; i++){
     if(checkLanding()) break;
@@ -152,12 +177,18 @@ void setup() {
     updateLanding();  
   }
   printEvent("We Have Landed!");
+
+  //Landing Detection , 0 = Failed, 1 = Success
+  writeTrue();
   delay(1000);
 
   // After landing, check to make sure the payload tube is not rolling
   printEvent("Standing by for checkRoll.");
   checkRoll();
   printEvent("Check Roll Finished.");
+
+  // System has agreed on check roll, 0 = Failed, 1 = Success
+  writeTrue();
 
   imu::Quaternion q = bno.getQuat();
   float yy = q.y() * q.y();
@@ -169,14 +200,30 @@ void setup() {
   printEvent(buffer);
   delay(500);
 
+  // What degree did system land?, 0 = Failed to commit
+  EEPROM.writeFloat(address, initialXAngle);
+  Serial.print("Address at angle "); 
+  Serial.println(address);                                                                                              
+  address += sizeof(initialXAngle);
+  Serial.println(address);                                                                                               
+  EEPROM.commit();
+  writeMillis();
+
   leadScrewRun();
   printEvent("Done deploying horizontally.");
-  delay(2000);
 
-  // deploy vertically
+  // Lead Screw Deployed, 0 = Failed, 1 = Success
+  writeTrue();
+
+  delay(2000);
+  // Deploy vertically
   printEvent("Deploying vertically.");
   spinCameraStepper(-60);
   printEvent("Finished deploying vertically.");
+
+  // Camera Deployed, 0 = Failed, 1 = Success
+  writeTrue();
+
   printEvent("Standing By for Camera commands...");
 	serialMessage = "";
 }
@@ -195,6 +242,31 @@ void loop() {
     printEvent("Executing Radio Commands");
     interpretRadioString(serialMessage);
     printEvent("Done with all radio commands.");
+
+    writeMillis();
+
+    Serial.println(commands[0]);
+    Serial.println(commands[1]);
+    Serial.println(commands[2]);
+    Serial.println(commands[3]);
+    Serial.println(commands[4]);
+    Serial.println(commands[5]);
+
+
+    int addressIndex = address;
+    for (int i = 0; i < 30; i++) {
+      EEPROM.write(addressIndex, commands[i] >> 8);
+      EEPROM.write(addressIndex + 1, commands[i] & 0xFF);
+      Serial.print("Written to address "); Serial.println(addressIndex);
+      addressIndex += 2;
+    }
+
+    // Interpreted Radio Commands, 0 = Failed, 1 = Success
+    Serial.println(addressIndex);
+    EEPROM.writeBool(addressIndex, true);
+    addressIndex += sizeof(bool);                                                                                                                                                                                                                                                                                                                                                                                                                                         
+    EEPROM.commit();
+
     serialMessage = "";
     beginTime = -1;
   }
@@ -297,6 +369,13 @@ void checkSerialMessage() {
       serialMessage = "run motor";
       num_deployment_LeadScrew_steps = temp;
     }
+    else if(serialMessage == "reset storage") {
+      for (int i = 0 ; i < EEPROM.length() ; i++) {
+  	    EEPROM.write(i, 0);
+        EEPROM.commit();
+	     }
+      Serial.println("Flashed EEPROM to 0!");
+    }
     else if (serialMessage.indexOf("steps =") != -1)
       num_deployment_LeadScrew_steps = serialMessage.substring(serialMessage.indexOf("=") + 2).toInt();
     else if (serialMessage.indexOf("radio string") != -1)
@@ -337,16 +416,81 @@ bool checkRoll() {
     // Within .5 radians of the two BNO055 roll values
     if (roll2 - .5 < roll && roll < roll2 + .5) {
       printEvent("Both IMUs have same data (within 0.5 radians).");
+       
+      // Both IMUs Agree, 0 = Failed, 1 = Success
+      EEPROM.writeBool(address, true);
+      address += sizeof(bool);                                                                                                                                                                                                                    
+      EEPROM.commit();
+
+      EEPROM.writeULong(address, millis());
+      Serial.println(address);
+      address += sizeof(unsigned long);                                                                                                       
+      EEPROM.commit(); 
+
+      // Store Final Roll 1
+      EEPROM.writeFloat(address, roll);
+      address += sizeof(roll);
+      EEPROM.commit();
+      // Store Final Roll 2
+      EEPROM.writeFloat(address, roll2);
+      address += sizeof(roll2);                                                                                                         
+      EEPROM.commit();
+
       // Within 10 degrees of the two roll values on the first BNO055
       if (prevRoll - 10 < currentRoll && currentRoll < prevRoll + 10) {
-        printEvent("prevRoll is whithin 10 degrees of currentRoll.");
+        printEvent("prevRoll is within 10 degrees of currentRoll.");
+
+      // IMU Agrees that prevRoll is same as last currentRoll, 0 = Failed, 1 = Success
+      EEPROM.writeBool(address, true);
+      address += sizeof(bool);                                                                                                                                                                                                                    
+      EEPROM.commit();
+      
+      EEPROM.writeULong(address, millis());
+      Serial.println(address);
+      address += sizeof(unsigned long);                                                                                                       
+      EEPROM.commit();
+
+      // Store prevRoll
+      EEPROM.writeFloat(address, prevRoll);
+      address += sizeof(prevRoll);                                                                                                         
+      EEPROM.commit();
+      // Store currentRoll
+      EEPROM.writeFloat(address, currentRoll);  
+      address += sizeof(currentRoll);                                                                                                                                                                                                                 
+      EEPROM.commit();
+      // Store countCheck
+      // EEPROM.writeInt(address, countCheck);
+      // address += sizeof(countCheck);                                                                                                                                                                                                                 
+      // EEPROM.commit();
+
         return true;
       }
     }
     else if (countCheck == 5) { // If a value can not come to a consesus within 5 polls, override the auxillary mechanism
       printEvent("Both IMU have different data.");
       if (prevRoll - 10 < currentRoll && currentRoll < prevRoll + 10) {
-        printEvent("prevRoll is whithin 10 degrees of currentRoll.");
+        printEvent("prevRoll is within 10 degrees of currentRoll.");
+
+        // If all systems are working as intended, following values should be 0.
+        // IMUs fail to agree, 0 = Failed, 1 = Success
+        EEPROM.writeBool(address, true);
+        address += sizeof(bool);                                                                                                                                                                                                                    
+        EEPROM.commit();
+
+        EEPROM.writeULong(address, millis());
+        Serial.println(address);
+        address += sizeof(unsigned long);                                                                                                       
+        EEPROM.commit(); 
+
+        // Store prevRoll
+        EEPROM.writeFloat(address, roll);
+        address += sizeof(roll);                                                                                                         
+        EEPROM.commit();
+        // Store currentRoll
+        EEPROM.writeFloat(address, roll2);
+        address += sizeof(roll2);                                                                                                                                                                                                                
+        EEPROM.commit();
+
         return true;
       }
     }
@@ -366,20 +510,14 @@ void spinCameraStepper(int angle) {
     angle = angle - 360;
   else if (cameraAngle + angle < -180)
     angle = angle + 360;
-  Serial.println(angle);
   int steps = angle / 1.8;
   cameraAngle += steps * 1.8;
-  Serial.println(steps);
   CameraStepper.move(steps);
-  while (CameraStepper.run()) {
-  }
+  while (CameraStepper.run()) {}
 }
 
 void printEvent(const char *event) {
-  DateTime now = rtc.now();
-  char bufferString[] = "DD MMM hh:mm:ss";
-  char *timeString = now.toString(bufferString);
-  Serial.print(timeString);
+  Serial.print(millis());
   Serial.print(" - ");
   Serial.println(event);
 }
@@ -388,7 +526,6 @@ void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B
   printEvent("Interpreting radio string");
   message.toUpperCase();
   int numberCommands = 0;
-  int commands[100];
   while(1){
     int location = findFirstRadioCommand(message);
     if(location == -1) break;
@@ -396,12 +533,14 @@ void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B
     numberCommands++;
     message.remove(location, 2);
   }
+
   if(numberCommands == 0)
     printEvent("No commands found in serial message.");
   for (int i = 0; i < numberCommands; i++) {
     executeRadioCommand(commands[i]);
     delay(3000);
   }
+  sendData(0);
 }
 
 int findFirstRadioCommand(String message) {
@@ -444,6 +583,8 @@ void executeRadioCommand(int command) {
 }
 
 
+
+
 void sendData(int commandData) {
   // Get Timestamp
   DateTime now = rtc.now();
@@ -461,4 +602,18 @@ void sendData(int commandData) {
     printEvent("Sent with success");
   else
     printEvent("Error sending the data");
+}
+
+
+void writeTrue(){
+  EEPROM.writeBool(address, true);
+  address += sizeof(bool);                                                                                                                                                                                                                    
+  EEPROM.commit();
+  writeMillis();
+}
+
+void writeMillis() {
+  EEPROM.writeULong(address, millis());
+  address += sizeof(unsigned long);                                                                                                       
+  EEPROM.commit();
 }
