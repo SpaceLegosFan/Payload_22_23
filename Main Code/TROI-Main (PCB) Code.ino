@@ -143,7 +143,7 @@ void setup() {
   
   printEvent("Standing By for landing detection.");
   // Wait a minimum of 60 seconds before standing by for landing. Record flight data during this.
-  for (int i = 1; i <= 10 * 90; i++) {
+  for (int i = 1; i <= 10 * 30; i++) {
     if (i % 100 == 0){
       char timeMessage[50];
       snprintf(timeMessage, 50, "We are %d seconds into flight!", i/10);
@@ -225,6 +225,8 @@ void loop() {
   }
   if(beginTime != -1 && millis() - beginTime > 1000){
     printEvent("Executing Radio Commands");
+    Serial.print("The serial message is ");
+    Serial.println(serialMessage);
     interpretRadioString(serialMessage);
     printEvent("Done with all radio commands.");
 
@@ -234,7 +236,6 @@ void loop() {
     for (int i = 0; i < 30; i++) {
       EEPROM.write(addressIndex, commands[i] >> 8);
       EEPROM.write(addressIndex + 1, commands[i] & 0xFF);
-      Serial.print("Written to address "); Serial.println(addressIndex);
       addressIndex += 2;
     }
 
@@ -510,10 +511,13 @@ void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B
     numberCommands++;
     message.remove(location, 2);
   }
+  delay(5000);
 
   if(numberCommands == 0)
     printEvent("No commands found in serial message.");
   for (int i = 0; i < numberCommands; i++) {
+    //Serial.print(commands[i]);
+    //Serial.println(" ");
     executeRadioCommand(commands[i]);
     delay(3000);
   }
