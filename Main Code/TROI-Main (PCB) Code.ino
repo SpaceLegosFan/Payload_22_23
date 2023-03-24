@@ -143,7 +143,7 @@ void setup() {
   
   printEvent("Standing By for Launch.");
   // Wait a minimum of 60 seconds before standing by for landing. Record flight data during this.
-  for (int i = 1; i <= 10 * 20; i++) {
+  for (int i = 1; i <= 10 * 90; i++) {
     if (i % 100 == 0){
       char timeMessage[50];
       snprintf(timeMessage, 50, "We are %d seconds into flight!", i/10);
@@ -233,14 +233,6 @@ void loop() {
     printEvent("Done with all radio commands.");
 
     writeMillis();
-
-    Serial.println(commands[0]);
-    Serial.println(commands[1]);
-    Serial.println(commands[2]);
-    Serial.println(commands[3]);
-    Serial.println(commands[4]);
-    Serial.println(commands[5]);
-
 
     int addressIndex = address;
     for (int i = 0; i < 30; i++) {
