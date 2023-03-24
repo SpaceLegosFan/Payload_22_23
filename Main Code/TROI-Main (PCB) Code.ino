@@ -12,7 +12,6 @@ TROI ESP32-Main Code
 #include <EEPROM.h>
 #include <WiFi.h>
 #include "FS.h"
-#include "RTClib.h"
 #define EEPROM_SIZE 512
 #define I2C_SDA 21
 #define I2C_SCL 22
@@ -45,9 +44,6 @@ int address = 0;
 
 // Motor Values
 float num_deployment_LeadScrew_steps = DEPLOYSTEPS;
-
-// I2C RTC Clock Interface
-RTC_DS3231 rtc;
 
 // ESP-NOW - THIS NEEDS TO BE CHANGED, MAC ADDRESS CURRENTLY VALID
 uint8_t broadcastAddress[] = {0xC8, 0xF0, 0x9E, 0x9D, 0x46, 0x40};
@@ -87,13 +83,6 @@ void setup() {
   I2CSensors2.begin(I2C_SDA2, I2C_SCL2, 100000);
   Wire.begin();
   Serial.println("Initialized both I2CSensors and Wire.");
-
-  // RTC Clock
-  if (!rtc.begin(&I2CSensors)) {
-    Serial.println("Couldn't find RTC");
-    ESP.restart();
-  }
-  printEvent("RTC Clock Initialized.");
 
   if (!bno.begin()) {
     printEvent("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
@@ -589,7 +578,9 @@ void sendData(int commandData) {
   // Get Timestamp
   DateTime now = rtc.now();
   char bufferString[] = "DD MMM hh:mm:ss";
-  char *timeString = now.toString(bufferString);
+  char *timeString;
+  snprintf(timeString, "%lu", millis());
+
 
   // Set values to send
   strcpy(myData.timestamp, timeString);
