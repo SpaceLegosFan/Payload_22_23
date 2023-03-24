@@ -141,7 +141,7 @@ void setup() {
   //Launched State, 0 = Failed, 1 = Success
   writeTrue();
   
-  printEvent("Standing By for Launch.");
+  printEvent("Standing By for landing detection.");
   // Wait a minimum of 60 seconds before standing by for landing. Record flight data during this.
   for (int i = 1; i <= 10 * 90; i++) {
     if (i % 100 == 0){
@@ -185,7 +185,7 @@ void setup() {
   float initialXAngle = 57.2958 * roll;
 
   char buffer[100];
-  int ret = snprintf(buffer, sizeof buffer, "Landed at %f degrees. Standby for horizontal motion.", initialXAngle);
+  int ret = snprintf(buffer, sizeof buffer, "Landed at %f degrees. Horizontal motion started.", initialXAngle);
   printEvent(buffer);
   delay(500);
 
@@ -205,10 +205,6 @@ void setup() {
   writeTrue();
 
   delay(2000);
-  // Deploy vertically
-  printEvent("Deploying vertically.");
-  spinCameraStepper(-60);
-  printEvent("Finished deploying vertically.");
 
   // Camera Deployed, 0 = Failed, 1 = Success
   writeTrue();
@@ -568,10 +564,8 @@ void executeRadioCommand(int command) {
 
 void sendData(int commandData) {
   // Get Timestamp
-  DateTime now = rtc.now();
-  char bufferString[] = "DD MMM hh:mm:ss";
-  char *timeString;
-  snprintf(timeString, "%lu", millis());
+  char timeString[20];
+  snprintf(timeString, 20, "%lu", millis());
 
 
   // Set values to send
