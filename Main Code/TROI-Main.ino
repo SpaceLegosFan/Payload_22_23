@@ -52,7 +52,7 @@ float num_deployment_LeadScrew_steps = DEPLOYSTEPS;
 RTC_DS3231 rtc;
 
 // ESP-NOW - THIS NEEDS TO BE CHANGED, MAC ADDRESS CURRENTLY VALID
-uint8_t broadcastAddress[] = {0xC8, 0xF0, 0x9E, 0x4F, 0x69, 0xD0};
+uint8_t broadcastAddress[] = {0xC8, 0xF0, 0x9E, 0x9D, 0x46, 0x40};
 typedef struct struct_message{
   char timestamp[32];
   int command;
@@ -65,6 +65,8 @@ char buf[260];                   // Incoming data buffer
 int buflen = 0;                  // Length of buffered ata
 String serialMessage = "";
 int beginTime = -1;
+
+int commands[100];
 
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print("\r\nLast Packet Send Status:\t");
@@ -139,10 +141,17 @@ void setup() {
 
   //Setup State, 0 = Failed, 1 = Success
   EEPROM.writeBool(address, true);
-  address += sizeof(bool);                                                                                                        
+  address += sizeof(bool); 
+  EEPROM.commit();
+
+  EEPROM.writeULong(address, millis());
+  Serial.println(address);
+  address += sizeof(unsigned long);                                                                                                       
   EEPROM.commit();
 
   printEvent("Standing By for Launch.");
+
+  /*
 
   updateLaunch();
   while (!checkLaunch()) {
@@ -153,6 +162,9 @@ void setup() {
       checkSerialMessage();
     }
   }
+
+  */
+
   printEvent("We Have Launched!");
 
   //Launched State, 0 = Failed, 1 = Success
@@ -160,10 +172,15 @@ void setup() {
   address += sizeof(bool);                                                                                                                                                                                                                   
   EEPROM.commit();
 
+  EEPROM.writeULong(address, millis());
+  Serial.println(address);
+  address += sizeof(unsigned long);                                                                                                       
+  EEPROM.commit();
+  
   printEvent("Standing By for Launch.");
 
   // Wait a minimum of 60 seconds before standing by for landing. Record flight data during this.
-  for (int i = 1; i <= 10 * 90; i++) {
+  for (int i = 1; i <= 10 * 20; i++) {
     if (i % 100 == 0){
       char timeMessage[50];
       snprintf(timeMessage, 50, "We are %d seconds into flight!", i/10);
@@ -181,6 +198,11 @@ void setup() {
   address += sizeof(bool);                                                                                                                                                                                                                    
   EEPROM.commit();
 
+  EEPROM.writeULong(address, millis());
+  Serial.println(address);
+  address += sizeof(unsigned long);                                                                                                       
+  EEPROM.commit();
+
   updateLanding();
   for(int i = 0; i < 10 * 60 * 20; i++){
     if(checkLanding()) break;
@@ -192,6 +214,11 @@ void setup() {
   //Landing Detection , 0 = Failed, 1 = Success
   EEPROM.writeBool(address, true);
   address += sizeof(bool);                                                                                                                                                                                                                    
+  EEPROM.commit();
+
+  EEPROM.writeULong(address, millis());
+  Serial.println(address);
+  address += sizeof(unsigned long);                                                                                                       
   EEPROM.commit();
 
   delay(1000);
@@ -206,6 +233,11 @@ void setup() {
   address += sizeof(bool);                                                                                                                                                                                                                     
   EEPROM.commit();
 
+  EEPROM.writeULong(address, millis());
+  Serial.println(address);
+  address += sizeof(unsigned long);                                                                                                       
+  EEPROM.commit();
+
   imu::Quaternion q = bno.getQuat();
   float yy = q.y() * q.y();
   float roll = atan2(2 * (q.w() * q.x() + q.y() * q.z()), 1 - 2 * (q.x() * q.x() + yy));
@@ -217,8 +249,15 @@ void setup() {
   delay(500);
 
   // What degree did system land?, 0 = Failed to commit
-  EEPROM.writeFloat(address, initialXAngle);  
-  address += sizeof(initialXAngle);                                                                                                          
+  EEPROM.writeFloat(address, initialXAngle);
+  Serial.print("Address at angle "); Serial.println(address);                                                                                              
+  address += sizeof(initialXAngle);
+  Serial.println(address);                                                                                               
+  EEPROM.commit();
+
+  EEPROM.writeULong(address, millis());
+  Serial.println(address);
+  address += sizeof(unsigned long);                                                                                                       
   EEPROM.commit();
 
   leadScrewRun();
@@ -226,7 +265,13 @@ void setup() {
 
   // Lead Screw Deployed, 0 = Failed, 1 = Success
   EEPROM.writeBool(address, true);
-  address += sizeof(bool);                                                                                                                                                                                                                                                                                                                            
+  address += sizeof(bool);  
+  Serial.println(address);                                                                                                                                                                                                                                                                                                                                                                                                                      
+  EEPROM.commit();
+
+  EEPROM.writeULong(address, millis());
+  Serial.println(address);
+  address += sizeof(unsigned long);                                                                                                       
   EEPROM.commit();
 
   delay(2000);
@@ -239,6 +284,11 @@ void setup() {
   // Camera Deployed, 0 = Failed, 1 = Success
   EEPROM.writeBool(address, true);
   address += sizeof(bool);                                                                                                                                                                                                                    
+  EEPROM.commit();
+
+  EEPROM.writeULong(address, millis());
+  Serial.println(address);
+  address += sizeof(unsigned long);                                                                                                       
   EEPROM.commit();
 
   printEvent("Standing By for Camera commands...");
@@ -260,9 +310,33 @@ void loop() {
     interpretRadioString(serialMessage);
     printEvent("Done with all radio commands.");
 
+    EEPROM.writeULong(address, millis());
+    Serial.println(address);
+    address += sizeof(unsigned long);                                                                                                       
+    EEPROM.commit();
+
+    Serial.println(commands[0]);
+    Serial.println(commands[1]);
+    Serial.println(commands[2]);
+    Serial.println(commands[3]);
+    Serial.println(commands[4]);
+    Serial.println(commands[5]);
+
+
+    int addressIndex = address;
+    for (int i = 0; i < 30; i++) {
+
+      EEPROM.write(addressIndex, commands[i] >> 8);
+      EEPROM.write(addressIndex + 1, commands[i] & 0xFF);
+      Serial.print("Written to address "); Serial.println(addressIndex);
+      addressIndex += 2;
+
+    }
+
     // Interpreted Radio Commands, 0 = Failed, 1 = Success
-    EEPROM.writeBool(address, true);
-    address += sizeof(bool);                                                                                                                                                                                                                                                                                                                                                                                                                                         
+    Serial.println(addressIndex);
+    EEPROM.writeBool(addressIndex, true);
+    addressIndex += sizeof(bool);                                                                                                                                                                                                                                                                                                                                                                                                                                         
     EEPROM.commit();
 
     serialMessage = "";
@@ -370,6 +444,7 @@ void checkSerialMessage() {
     else if(serialMessage == "reset storage") {
       for (int i = 0 ; i < EEPROM.length() ; i++) {
   	    EEPROM.write(i, 0);
+        EEPROM.commit();
 	     }
       Serial.println("Flashed EEPROM to 0!");
     }
@@ -417,9 +492,14 @@ bool checkRoll() {
       // Both IMUs Agree, 0 = Failed, 1 = Success
       EEPROM.writeBool(address, true);
       address += sizeof(bool);                                                                                                                                                                                                                    
+      EEPROM.commit();
+
+      EEPROM.writeULong(address, millis());
+      Serial.println(address);
+      address += sizeof(unsigned long);                                                                                                       
       EEPROM.commit(); 
 
-      // Store Final Roll
+      // Store Final Roll 1
       EEPROM.writeFloat(address, roll);
       address += sizeof(roll);
       EEPROM.commit();
@@ -436,6 +516,12 @@ bool checkRoll() {
       EEPROM.writeBool(address, true);
       address += sizeof(bool);                                                                                                                                                                                                                    
       EEPROM.commit();
+      
+      EEPROM.writeULong(address, millis());
+      Serial.println(address);
+      address += sizeof(unsigned long);                                                                                                       
+      EEPROM.commit();
+
       // Store prevRoll
       EEPROM.writeFloat(address, prevRoll);
       address += sizeof(prevRoll);                                                                                                         
@@ -445,9 +531,9 @@ bool checkRoll() {
       address += sizeof(currentRoll);                                                                                                                                                                                                                 
       EEPROM.commit();
       // Store countCheck
-      EEPROM.put(address, countCheck);
-      address += sizeof(countCheck);                                                                                                                                                                                                                 
-      EEPROM.commit();
+      // EEPROM.writeInt(address, countCheck);
+      // address += sizeof(countCheck);                                                                                                                                                                                                                 
+      // EEPROM.commit();
 
         return true;
       }
@@ -461,7 +547,13 @@ bool checkRoll() {
         // IMUs fail to agree, 0 = Failed, 1 = Success
         EEPROM.writeBool(address, true);
         address += sizeof(bool);                                                                                                                                                                                                                    
+        EEPROM.commit();
+
+        EEPROM.writeULong(address, millis());
+        Serial.println(address);
+        address += sizeof(unsigned long);                                                                                                       
         EEPROM.commit(); 
+
         // Store prevRoll
         EEPROM.writeFloat(address, roll);
         address += sizeof(roll);                                                                                                         
@@ -512,23 +604,12 @@ void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B
   printEvent("Interpreting radio string");
   message.toUpperCase();
   int numberCommands = 0;
-  int commands[100];
   while(1){
     int location = findFirstRadioCommand(message);
     if(location == -1) break;
     commands[numberCommands] = message.substring(location+1, location+2).toInt();
     numberCommands++;
     message.remove(location, 2);
-    commands[numberCommands] = 0;
-  }
-
-  int addressIndex = address;
-  for (int i = 0; i < 30; i++) 
-  {
-    EEPROM.write(addressIndex, commands[i] >> 8);
-    EEPROM.write(addressIndex + 1, commands[i] & 0xFF);
-    addressIndex += 2;
-
   }
 
   if(numberCommands == 0)
@@ -537,6 +618,7 @@ void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B
     executeRadioCommand(commands[i]);
     delay(3000);
   }
+  sendData(0);
 }
 
 int findFirstRadioCommand(String message) {
