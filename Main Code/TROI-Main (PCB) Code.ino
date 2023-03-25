@@ -46,6 +46,8 @@ int size = 0;
 
 // Data Storage
 int address = 0;
+bool receivedCommands = 0;
+unsigned long radioTime;
 
 int melody[] = {
   466,8, 466,8, 466,8, //1
@@ -250,10 +252,14 @@ void setup() {
   delay(500);
   playNote(440, 200, 2);
 	serialMessage = "";
+  radioTime = millis();
 }
 
 // standby for RF commands
 void loop() {
+  if(receivedCommands == 0 && millis()-radioTime > 1800000){
+    interpretRadioString("XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3");
+  }
   while(Serial.available()>0){
     if(beginTime == -1) beginTime = millis();
     int index = Serial.read();
@@ -556,6 +562,7 @@ void interpretRadioString(String message) { // "XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B
   if(numberCommands == 0)
     printEvent("No commands found in serial message.");
   for (int i = 0; i < numberCommands; i++) {
+    receivedCommands = 1;
     //Serial.print(commands[i]);
     //Serial.println(" ");
     executeRadioCommand(commands[i]);
