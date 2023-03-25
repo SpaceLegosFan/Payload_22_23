@@ -11,6 +11,7 @@ TROI ESP32-Main Code
 #include <esp_now.h>
 #include <EEPROM.h>
 #include <WiFi.h>
+#include <math.h>
 #include "FS.h"
 #define EEPROM_SIZE 512
 #define I2C_SDA 21
@@ -25,7 +26,7 @@ TROI ESP32-Main Code
 #define ACCELERATION_LAND_TOLERANCE .3
 #define GYRO_LAND_TOLERANCE 5
 #define ACCELERATION_LAUNCH_TOLERANCE 30
-#define DEPLOYSTEPS 5700
+#define DEPLOYSTEPS 9400
 
 TwoWire I2CSensors = TwoWire(0);
 TwoWire I2CSensors2 = TwoWire(1);
@@ -133,6 +134,7 @@ void setup() {
     updateLaunch();
     updateSerialMessage();
     if(serialMessage != ""){
+      Serial.println(serialMessage);
       checkSerialMessage();
     }
   }
@@ -223,7 +225,7 @@ void loop() {
       serialMessage += letter;
     }
   }
-  if(beginTime != -1 && millis() - beginTime > 1000){
+  if(beginTime != -1 && millis() - beginTime > 2000){
     printEvent("Executing Radio Commands");
     Serial.print("The serial message is ");
     Serial.println(serialMessage);
@@ -332,19 +334,19 @@ void checkSerialMessage() {
     else if(serialMessage == "reset motor"){
       int temp = num_deployment_LeadScrew_steps;
       num_deployment_LeadScrew_steps = -DEPLOYSTEPS;
-      serialMessage = "run motor";
+      leadScrewRun();
       num_deployment_LeadScrew_steps = temp;
     }
     else if(serialMessage == "step down"){
       int temp = num_deployment_LeadScrew_steps;
       num_deployment_LeadScrew_steps = -50;
-      serialMessage = "run motor";
+      leadScrewRun();
       num_deployment_LeadScrew_steps = temp;
     }
     else if(serialMessage == "step up"){
       int temp = num_deployment_LeadScrew_steps;
       num_deployment_LeadScrew_steps = 50;
-      serialMessage = "run motor";
+      leadScrewRun();
       num_deployment_LeadScrew_steps = temp;
     }
     else if(serialMessage == "reset storage") {
@@ -484,12 +486,13 @@ void leadScrewRun() {
 }
 
 void spinCameraStepper(int angle) {
+  angle *= -1;
   if (cameraAngle + angle > 180)
     angle = angle - 360;
   else if (cameraAngle + angle < -180)
     angle = angle + 360;
-  int steps = angle / 1.8;
-  cameraAngle += steps * 1.8;
+  int steps = round((float)angle / .9);
+  cameraAngle += steps * .9;
   CameraStepper.move(steps);
   while (CameraStepper.run()) {}
 }
