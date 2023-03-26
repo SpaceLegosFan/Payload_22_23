@@ -98,10 +98,8 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 }
 
 void setup() {
-  delay(5000);
-
   Serial.begin(38400);
-  /*
+
   // Initialize EEPROM with predefined size
   if (!EEPROM.begin(EEPROM_SIZE)) {
     Serial.println("Failed to initialise EEPROM...");
@@ -109,7 +107,6 @@ void setup() {
   } else {
     Serial.println("Success to initialise EEPROM...");
   }
-  */
 
   // I2C Sensors
   I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
@@ -155,8 +152,6 @@ void setup() {
   CameraStepper.setSpeed(200);
 
   printEvent("Setup done!");
-
-  //playMusic();
 
   //Setup State, 0 = Failed, 1 = Success
   writeTrue();
@@ -249,9 +244,11 @@ void setup() {
   writeTrue();
 
   printEvent("Standing By for Camera commands...");
-  playNote(440, 200, 1);
-  delay(500);
-  playNote(440, 200, 2);
+  CameraStepper.move(400);
+  while (CameraStepper.run()) {}
+  CameraStepper.move(-200);
+  while (CameraStepper.run()) {}
+
   interpretRadioString("XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3");
 }
 
