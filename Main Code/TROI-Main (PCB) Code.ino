@@ -246,7 +246,7 @@ void setup() {
   printEvent("Moving camera to starting position.");
   CameraStepper.move(400);
   while (CameraStepper.run()) {}
-  CameraStepper.move(-200);
+  CameraStepper.move(-130);
   while (CameraStepper.run()) {}
   cameraAngle = 0.0;
 
