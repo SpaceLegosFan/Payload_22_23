@@ -98,8 +98,10 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 }
 
 void setup() {
-  Serial.begin(38400);
+  delay(5000);
 
+  Serial.begin(38400);
+  /*
   // Initialize EEPROM with predefined size
   if (!EEPROM.begin(EEPROM_SIZE)) {
     Serial.println("Failed to initialise EEPROM...");
@@ -107,6 +109,7 @@ void setup() {
   } else {
     Serial.println("Success to initialise EEPROM...");
   }
+  */
 
   // I2C Sensors
   I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
@@ -170,7 +173,7 @@ void setup() {
     }
   }
   printEvent("We Have Launched!");
-  playNote(440, 20000, 1);
+  //playNote(440, 20000, 1);
 
   //Launched State, 0 = Failed, 1 = Success
   writeTrue();
@@ -181,7 +184,7 @@ void setup() {
     if (i % 100 == 0){
       char timeMessage[50];
       snprintf(timeMessage, 50, "We are %d seconds into flight!", i/10);
-      playNote(440, 200, 1);
+      //playNote(440, 200, 1);
       printEvent(timeMessage);
     }
     updateLanding();
@@ -190,7 +193,7 @@ void setup() {
 
   // Wait in standby mode and loop until landed
   printEvent("Standing By for Landing");
-  playNote(440, 200, 3);
+  //playNote(440, 200, 3);
 
   //Seconds Passed, Waiting for Landing , 0 = Failed, 1 = Success
   writeTrue();
