@@ -27,6 +27,7 @@ TROI ESP32-Main Code
 #define ACCELERATION_LAND_TOLERANCE .3
 #define GYRO_LAND_TOLERANCE 5
 #define ACCELERATION_LAUNCH_TOLERANCE 30
+#define INITIALSTEPS 1500
 #define DEPLOYSTEPS 9100
 #define REST 0
 #define BUZZER 4
@@ -232,6 +233,17 @@ void setup() {
   EEPROM.commit();
   writeMillis();
 
+  num_deployment_LeadScrew_steps = INITIALSTEPS;
+  leadScrewRun();
+
+  printEvent("Moving camera to starting position.");
+  CameraStepper.move(400);
+  while (CameraStepper.run()) {}
+  CameraStepper.move(-130);
+  while (CameraStepper.run()) {}
+  cameraAngle = 0.0;
+
+  num_deployment_LeadScrew_steps = DEPLOYSTEPS - INITIALSTEPS;
   leadScrewRun();
   printEvent("Done deploying horizontally.");
 
@@ -242,13 +254,6 @@ void setup() {
 
   // Camera Deployed, 0 = Failed, 1 = Success
   writeTrue();
-
-  printEvent("Moving camera to starting position.");
-  CameraStepper.move(400);
-  while (CameraStepper.run()) {}
-  CameraStepper.move(-130);
-  while (CameraStepper.run()) {}
-  cameraAngle = 0.0;
 
   delay(1000);
 
