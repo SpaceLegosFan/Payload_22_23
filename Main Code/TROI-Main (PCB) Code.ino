@@ -175,7 +175,7 @@ void setup() {
   
   printEvent("Standing By for landing detection.");
   // Wait a minimum of 60 seconds before standing by for landing. Record flight data during this.
-  for (int i = 1; i <= 10 * 30; i++) {
+  for (int i = 1; i <= 10 * 90; i++) {
     if (i % 100 == 0){
       char timeMessage[50];
       snprintf(timeMessage, 50, "We are %d seconds into flight!", i/10);
@@ -243,13 +243,20 @@ void setup() {
   // Camera Deployed, 0 = Failed, 1 = Success
   writeTrue();
 
-  printEvent("Standing By for Camera commands...");
+  printEvent("Moving camera to starting position.");
   CameraStepper.move(400);
   while (CameraStepper.run()) {}
   CameraStepper.move(-200);
   while (CameraStepper.run()) {}
+  cameraAngle = 0.0;
+
+  delay(1000);
+
+  printEvent("Interpreting Practice Radio String.");
 
   interpretRadioString("XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3");
+  delay(1000);
+  printEvent("Standing By for Camera commands...");
 }
 
 // standby for RF commands
