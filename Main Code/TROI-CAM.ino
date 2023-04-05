@@ -337,7 +337,7 @@ void initCAMERA(camera_config_t config, sensor_t * s){
     config.pin_sscb_scl = SIOC_GPIO_NUM;
     config.pin_pwdn = PWDN_GPIO_NUM;
     config.pin_reset = RESET_GPIO_NUM;
-    config.xclk_freq_hz = 12000000;
+    config.xclk_freq_hz = 20000000;
     config.pixel_format = PIXFORMAT_JPEG; //YUV422,GRAYSCALE,RGB565,JPEG                     
     
     if(psramFound()){                                           // https://github.com/espressif/esp-who/issues/83
@@ -378,6 +378,8 @@ void initCAMERA(camera_config_t config, sensor_t * s){
       delay(500);
       ESP.restart();
       }
+
+      
       
     
 
@@ -662,7 +664,7 @@ void color_2_gray(sensor_t * s) {
 }
 
 void gray_2_color(sensor_t * s) {
-  gray_2_color(s);
+  printEvent("Grayscale to color");
   s = esp_camera_sensor_get();
   s->set_special_effect(s, 0);
   printEvent("Color Complete!");
