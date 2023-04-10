@@ -48,31 +48,6 @@ int size = 0;
 // Data Storage
 int address = 0;
 
-int melody[] = {
-  466,8, 466,8, 466,8, //1
-  698,2, 1047,2,
-  932,8, 880,8, 784,8, 698,2, 1047,4,
-  932,8, 880,8, 784,8, 698,2, 1047,4,
-  932,8, 880,8, 932,8, 784,2, 523,8, 523,8, 523,8,
-  698,2, 1047,2,
-  932,8, 880,8, 784,8, 698,2, 1047,4,
-
-  932,8, 880,8, 784,8, 698,2, 1047,4, //8
-  932,8, 880,8, 932,8, 784,2, 523,-8, 523,16,
-  587,-4, 587,8, 932,8, 880,8, 784,8, 698,8,
-  698,8, 784,8, 880,8, 784,4, 587,8, 659,4,523,-8, 523,16,
-  587,-4, 587,8, 932,8, 880,8, 784,8, 698,8,
-
-  1047,-8, 784,16, 784,2, 0,8, 523,8,//13
-  587,-4, 587,8, 932,8, 880,8, 784,8, 698,8,
-  698,8, 784,8, 880,8, 784,4, 587,8, 659,4,1047,-8, 1047,16,
-  1397,4, 622,8, 554,4, 523,8, 466,4, 415,8, 392,4, 349,8,
-  1047,1
-};
-int notes = sizeof(melody) / sizeof(melody[0]) / 2;
-int wholenote = (60000 * 4) / TEMPO;
-int divider = 0, noteDuration = 0;
-
 // Motor Values
 float num_deployment_LeadScrew_steps = DEPLOYSTEPS;
 
@@ -547,7 +522,9 @@ void spinCameraStepper(int angle) {
 }
 
 void printEvent(const char *event) {
-  Serial.print(millis());
+  DateTime now = rtc.now();
+  char *timeString = now.toString("DD MMM hh:mm:ss");
+  Serial.print(timeString);
   Serial.print(" - ");
   Serial.println(event);
 }
@@ -620,9 +597,8 @@ void executeRadioCommand(int command) {
 
 void sendData(int commandData) {
   // Get Timestamp
-  char timeString[20];
-  snprintf(timeString, 20, "%lu", millis());
-
+  DateTime now = rtc.now();
+  char *timeString = now.toString("DD MMM hh:mm:ss");
 
   // Set values to send
   strcpy(myData.timestamp, timeString);
@@ -649,27 +625,4 @@ void writeMillis() {
   EEPROM.writeULong(address, millis());
   address += sizeof(unsigned long);                                                                                                       
   EEPROM.commit();
-}
-
-void playMusic() {
-  for (int thisNote = 0; thisNote < notes * 2; thisNote = thisNote + 2) {
-    divider = melody[thisNote + 1];
-    if (divider > 0) {
-      noteDuration = (wholenote) / divider;
-    } else if (divider < 0) {
-      noteDuration = (wholenote) / abs(divider);
-      noteDuration *= 1.5; // increases the duration in half for dotted notes
-    }
-    tone(BUZZER, melody[thisNote], noteDuration*0.9);
-    delay(noteDuration);
-    noTone(BUZZER);
-  }
-}
-
-void playNote(int note, int length, int numTimes) {
-  for(int i = 0; i < numTimes; i++) {
-    tone(BUZZER, note, length);
-    delay(length);
-    noTone(BUZZER);
-  }
 }
