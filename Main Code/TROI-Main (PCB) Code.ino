@@ -14,6 +14,7 @@ TROI ESP32-Main Code
 #include <math.h>
 #include <ESP32Servo.h>
 #include "FS.h"
+#include "RTClib.h"
 #define EEPROM_SIZE 512
 #define I2C_SDA 21
 #define I2C_SCL 22
@@ -29,9 +30,6 @@ TROI ESP32-Main Code
 #define ACCELERATION_LAUNCH_TOLERANCE 30
 #define INITIALSTEPS 1500
 #define DEPLOYSTEPS 9100
-#define REST 0
-#define BUZZER 4
-#define TEMPO 108
 
 TwoWire I2CSensors = TwoWire(0);
 TwoWire I2CSensors2 = TwoWire(1);
@@ -47,6 +45,9 @@ int size = 0;
 
 // Data Storage
 int address = 0;
+
+// I2C RTC Clock Interface
+RTC_DS3231 rtc;
 
 // Motor Values
 float num_deployment_LeadScrew_steps = DEPLOYSTEPS;
@@ -89,6 +90,13 @@ void setup() {
   I2CSensors2.begin(I2C_SDA2, I2C_SCL2, 100000);
   Wire.begin();
   Serial.println("Initialized both I2CSensors and Wire.");
+			
+  // RTC Clock		
+  if (!rtc.begin(&I2CSensors)) {		
+    Serial.println("Couldn't find RTC");		
+    ESP.restart();		
+  }		
+  printEvent("RTC Clock Initialized.");
 
   if (!bno.begin()) {
     printEvent("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
@@ -144,7 +152,6 @@ void setup() {
     }
   }
   printEvent("We Have Launched!");
-  //playNote(440, 20000, 1);
 
   //Launched State, 0 = Failed, 1 = Success
   writeTrue();
@@ -155,7 +162,6 @@ void setup() {
     if (i % 100 == 0){
       char timeMessage[50];
       snprintf(timeMessage, 50, "We are %d seconds into flight!", i/10);
-      //playNote(440, 200, 1);
       printEvent(timeMessage);
     }
     updateLanding();
@@ -164,7 +170,6 @@ void setup() {
 
   // Wait in standby mode and loop until landed
   printEvent("Standing By for Landing");
-  //playNote(440, 200, 3);
 
   //Seconds Passed, Waiting for Landing , 0 = Failed, 1 = Success
   writeTrue();
@@ -208,17 +213,17 @@ void setup() {
   EEPROM.commit();
   writeMillis();
 
+
   num_deployment_LeadScrew_steps = INITIALSTEPS;
   leadScrewRun();
-
   printEvent("Moving camera to starting position.");
   CameraStepper.move(400);
   while (CameraStepper.run()) {}
   CameraStepper.move(-130);
   while (CameraStepper.run()) {}
   cameraAngle = 0.0;
-
   num_deployment_LeadScrew_steps = DEPLOYSTEPS - INITIALSTEPS;
+
   leadScrewRun();
   printEvent("Done deploying horizontally.");
 
@@ -230,13 +235,14 @@ void setup() {
   // Camera Deployed, 0 = Failed, 1 = Success
   writeTrue();
 
+  	
   delay(1000);
-
   printEvent("Interpreting Practice Radio String.");
-
-  interpretRadioString("XX4XXX C3 A1 D4 C3 F6 C3 F6 B2 B2 C3");
+  interpretRadioString("XX4XXX C3 A1 D4 C3 E5 A1 G7 C3 H8 A1 F6 C3");
   delay(1000);
+
   printEvent("Standing By for Camera commands...");
+	serialMessage = "";
 }
 
 // standby for RF commands
@@ -358,19 +364,19 @@ void checkSerialMessage() {
     else if(serialMessage == "reset motor"){
       int temp = num_deployment_LeadScrew_steps;
       num_deployment_LeadScrew_steps = -DEPLOYSTEPS;
-      leadScrewRun();
+      serialMessage = "run motor";
       num_deployment_LeadScrew_steps = temp;
     }
     else if(serialMessage == "step down"){
       int temp = num_deployment_LeadScrew_steps;
       num_deployment_LeadScrew_steps = -50;
-      leadScrewRun();
+      serialMessage = "run motor";
       num_deployment_LeadScrew_steps = temp;
     }
     else if(serialMessage == "step up"){
       int temp = num_deployment_LeadScrew_steps;
       num_deployment_LeadScrew_steps = 50;
-      leadScrewRun();
+      serialMessage = "run motor";
       num_deployment_LeadScrew_steps = temp;
     }
     else if(serialMessage == "reset storage") {
@@ -510,20 +516,21 @@ void leadScrewRun() {
 }
 
 void spinCameraStepper(int angle) {
-  angle *= -1;
+    angle *= -1;
   if (cameraAngle + angle > 180)
     angle = angle - 360;
   else if (cameraAngle + angle < -180)
     angle = angle + 360;
-  int steps = round((float)angle / .9);
-  cameraAngle += steps * .9;
+   int steps = round((float)angle / .9);
+	cameraAngle += steps * .9;
   CameraStepper.move(steps);
   while (CameraStepper.run()) {}
 }
 
 void printEvent(const char *event) {
   DateTime now = rtc.now();
-  char *timeString = now.toString("DD MMM hh:mm:ss");
+  char bufferString[] = "DD MMM hh:mm:ss";
+  char *timeString = now.toString(bufferString);
   Serial.print(timeString);
   Serial.print(" - ");
   Serial.println(event);
@@ -598,7 +605,9 @@ void executeRadioCommand(int command) {
 void sendData(int commandData) {
   // Get Timestamp
   DateTime now = rtc.now();
-  char *timeString = now.toString("DD MMM hh:mm:ss");
+  char bufferString[] = "DD MMM hh:mm:ss";
+  char *timeString = now.toString(bufferString);
+
 
   // Set values to send
   strcpy(myData.timestamp, timeString);
